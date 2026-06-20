@@ -1,0 +1,33 @@
+package com.farmtofolk.farmtofolk_ledger.verification;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public record VerificationEvidenceResponse(
+        UUID id,
+        UUID verificationId,
+        String fileType,
+        String fileUrl,
+        String fileHash,
+        String caption,
+        Boolean isPublic,
+        LocalDateTime capturedAt,
+        UUID uploadedByUserId,
+        LocalDateTime createdAt
+) {
+
+    public static VerificationEvidenceResponse from(VerificationEvidence verificationEvidence) {
+        return new VerificationEvidenceResponse(
+                verificationEvidence.getId(),
+                verificationEvidence.getVerificationId(),
+                verificationEvidence.getFileType(),
+                verificationEvidence.getFileUrl(),
+                verificationEvidence.getFileHash(),
+                verificationEvidence.getCaption(),
+                verificationEvidence.getIsPublic(),
+                verificationEvidence.getCapturedAt(),
+                verificationEvidence.getUploadedByUserId(),
+                verificationEvidence.getCreatedAt()
+        );
+    }
+}

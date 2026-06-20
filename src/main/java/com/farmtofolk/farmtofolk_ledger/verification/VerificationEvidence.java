@@ -49,5 +49,81 @@ public class VerificationEvidence {
     @PrePersist
     void prePersist() {
         createdAt = LocalDateTime.now();
+
+        if (isPublic == null) {
+            isPublic = true;
+        }
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getVerificationId() {
+        return verificationId;
+    }
+
+    public void setVerificationId(UUID verificationId) {
+        this.verificationId = verificationId;
+    }
+
+    public String getFileType() {
+        return fileType;
+    }
+
+    public void setFileType(String fileType) {
+        this.fileType = fileType;
+    }
+
+    public String getFileUrl() {
+        return fileUrl;
+    }
+
+    public void setFileUrl(String fileUrl) {
+        this.fileUrl = fileUrl;
+    }
+
+    public String getFileHash() {
+        return fileHash;
+    }
+
+    public void setFileHash(String fileHash) {
+        this.fileHash = fileHash;
+    }
+
+    public String getCaption() {
+        return caption;
+    }
+
+    public void setCaption(String caption) {
+        this.caption = caption;
+    }
+
+    public Boolean getIsPublic() {
+        return isPublic;
+    }
+
+    public void setIsPublic(Boolean isPublic) {
+        this.isPublic = isPublic;
+    }
+
+    public LocalDateTime getCapturedAt() {
+        return capturedAt;
+    }
+
+    public void setCapturedAt(LocalDateTime capturedAt) {
+        this.capturedAt = capturedAt;
+    }
+
+    public UUID getUploadedByUserId() {
+        return uploadedByUserId;
+    }
+
+    public void setUploadedByUserId(UUID uploadedByUserId) {
+        this.uploadedByUserId = uploadedByUserId;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }
