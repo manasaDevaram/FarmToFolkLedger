@@ -67,4 +67,96 @@ public class FarmVerification {
     void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getFarmId() {
+        return farmId;
+    }
+
+    public void setFarmId(UUID farmId) {
+        this.farmId = farmId;
+    }
+
+    public LocalDate getVerificationDate() {
+        return verificationDate;
+    }
+
+    public void setVerificationDate(LocalDate verificationDate) {
+        this.verificationDate = verificationDate;
+    }
+
+    public UUID getVerifiedByUserId() {
+        return verifiedByUserId;
+    }
+
+    public void setVerifiedByUserId(UUID verifiedByUserId) {
+        this.verifiedByUserId = verifiedByUserId;
+    }
+
+    public String getVerificationType() {
+        return verificationType;
+    }
+
+    public void setVerificationType(String verificationType) {
+        this.verificationType = verificationType;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Boolean getChemicalFreeClaim() {
+        return chemicalFreeClaim;
+    }
+
+    public void setChemicalFreeClaim(Boolean chemicalFreeClaim) {
+        this.chemicalFreeClaim = chemicalFreeClaim;
+    }
+
+    public Boolean getAgroecologyVerified() {
+        return agroecologyVerified;
+    }
+
+    public void setAgroecologyVerified(Boolean agroecologyVerified) {
+        this.agroecologyVerified = agroecologyVerified;
+    }
+
+    public String getChecklistJson() {
+        return checklistJson;
+    }
+
+    public void setChecklistJson(String checklistJson) {
+        this.checklistJson = checklistJson;
+    }
+
+    public String getObservations() {
+        return observations;
+    }
+
+    public void setObservations(String observations) {
+        this.observations = observations;
+    }
+
+    public LocalDate getNextVerificationDue() {
+        return nextVerificationDue;
+    }
+
+    public void setNextVerificationDue(LocalDate nextVerificationDue) {
+        this.nextVerificationDue = nextVerificationDue;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
 }
