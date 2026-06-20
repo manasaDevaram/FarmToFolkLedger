@@ -40,5 +40,57 @@ public class FarmMedia {
     @PrePersist
     void prePersist() {
         createdAt = LocalDateTime.now();
+
+        if (isPublic == null) {
+            isPublic = true;
+        }
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getFarmId() {
+        return farmId;
+    }
+
+    public void setFarmId(UUID farmId) {
+        this.farmId = farmId;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
+    }
+
+    public String getMediaUrl() {
+        return mediaUrl;
+    }
+
+    public void setMediaUrl(String mediaUrl) {
+        this.mediaUrl = mediaUrl;
+    }
+
+    public String getCaption() {
+        return caption;
+    }
+
+    public void setCaption(String caption) {
+        this.caption = caption;
+    }
+
+    public Boolean getIsPublic() {
+        return isPublic;
+    }
+
+    public void setIsPublic(Boolean isPublic) {
+        this.isPublic = isPublic;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }
