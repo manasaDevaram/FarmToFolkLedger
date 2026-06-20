@@ -60,4 +60,88 @@ public class Farm {
     void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getFarmerId() {
+        return farmerId;
+    }
+
+    public void setFarmerId(UUID farmerId) {
+        this.farmerId = farmerId;
+    }
+
+    public String getFarmName() {
+        return farmName;
+    }
+
+    public void setFarmName(String farmName) {
+        this.farmName = farmName;
+    }
+
+    public String getVillage() {
+        return village;
+    }
+
+    public void setVillage(String village) {
+        this.village = village;
+    }
+
+    public String getDistrict() {
+        return district;
+    }
+
+    public void setDistrict(String district) {
+        this.district = district;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public BigDecimal getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(BigDecimal latitude) {
+        this.latitude = latitude;
+    }
+
+    public BigDecimal getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(BigDecimal longitude) {
+        this.longitude = longitude;
+    }
+
+    public BigDecimal getSizeAcres() {
+        return sizeAcres;
+    }
+
+    public void setSizeAcres(BigDecimal sizeAcres) {
+        this.sizeAcres = sizeAcres;
+    }
+
+    public String getFarmingType() {
+        return farmingType;
+    }
+
+    public void setFarmingType(String farmingType) {
+        this.farmingType = farmingType;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
 }
