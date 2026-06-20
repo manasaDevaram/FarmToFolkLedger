@@ -17,19 +17,23 @@ public class FarmerService {
     }
 
     public FarmerResponse createFarmer(CreateFarmerRequest request) {
+        // Copy request data into a new Farmer entity.
         Farmer farmer = new Farmer();
         applyRequest(farmer, request);
 
+        // Save the farmer and return API-friendly response data.
         Farmer savedFarmer = farmerRepository.save(farmer);
         return FarmerResponse.from(savedFarmer);
     }
 
     public FarmerResponse getFarmer(UUID farmerId) {
+        // Load one farmer by ID and convert it to a response.
         Farmer farmer = findFarmer(farmerId);
         return FarmerResponse.from(farmer);
     }
 
     public List<FarmerResponse> getAllFarmers() {
+        // Fetch all farmers and convert each one to a response.
         return farmerRepository.findAll()
                 .stream()
                 .map(FarmerResponse::from)
@@ -37,6 +41,7 @@ public class FarmerService {
     }
 
     public FarmerResponse updateFarmer(UUID farmerId, CreateFarmerRequest request) {
+        // Load the existing farmer, update its fields, then save it.
         Farmer farmer = findFarmer(farmerId);
         applyRequest(farmer, request);
 
@@ -45,6 +50,7 @@ public class FarmerService {
     }
 
     public FarmerResponse updateFarmerStatus(UUID farmerId, UpdateFarmerStatusRequest request) {
+        // Load the farmer and update only the active status.
         Farmer farmer = findFarmer(farmerId);
         farmer.setActive(request.active());
 
@@ -53,11 +59,13 @@ public class FarmerService {
     }
 
     private Farmer findFarmer(UUID farmerId) {
+        // Reuse one not-found lookup rule for all farmer reads and updates.
         return farmerRepository.findById(farmerId)
                 .orElseThrow(() -> new RuntimeException("Farmer not found"));
     }
 
     private void applyRequest(Farmer farmer, CreateFarmerRequest request) {
+        // Keep request-to-entity field mapping in one place.
         farmer.setFarmerCode(request.farmerCode());
         farmer.setName(request.name());
         farmer.setPhone(request.phone());
