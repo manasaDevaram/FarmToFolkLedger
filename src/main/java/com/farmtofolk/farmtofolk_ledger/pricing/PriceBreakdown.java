@@ -64,4 +64,88 @@ public class PriceBreakdown {
     void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(UUID batchId) {
+        this.batchId = batchId;
+    }
+
+    public BigDecimal getConsumerPrice() {
+        return consumerPrice;
+    }
+
+    public void setConsumerPrice(BigDecimal consumerPrice) {
+        this.consumerPrice = consumerPrice;
+    }
+
+    public BigDecimal getFarmerPrice() {
+        return farmerPrice;
+    }
+
+    public void setFarmerPrice(BigDecimal farmerPrice) {
+        this.farmerPrice = farmerPrice;
+    }
+
+    public BigDecimal getTransportCost() {
+        return transportCost;
+    }
+
+    public void setTransportCost(BigDecimal transportCost) {
+        this.transportCost = transportCost;
+    }
+
+    public BigDecimal getPackingCost() {
+        return packingCost;
+    }
+
+    public void setPackingCost(BigDecimal packingCost) {
+        this.packingCost = packingCost;
+    }
+
+    public BigDecimal getOrganizationCost() {
+        return organizationCost;
+    }
+
+    public void setOrganizationCost(BigDecimal organizationCost) {
+        this.organizationCost = organizationCost;
+    }
+
+    public BigDecimal getPlatformCost() {
+        return platformCost;
+    }
+
+    public void setPlatformCost(BigDecimal platformCost) {
+        this.platformCost = platformCost;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public String getPriceUnit() {
+        return priceUnit;
+    }
+
+    public void setPriceUnit(String priceUnit) {
+        this.priceUnit = priceUnit;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
 }
