@@ -61,6 +61,10 @@ public class Farmer {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+
+        if (active == null) {
+            active = true;
+        }
     }
 
     @PreUpdate
@@ -154,6 +158,10 @@ public class Farmer {
 
     public Boolean getActive() {
         return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 
     public LocalDateTime getCreatedAt() {
