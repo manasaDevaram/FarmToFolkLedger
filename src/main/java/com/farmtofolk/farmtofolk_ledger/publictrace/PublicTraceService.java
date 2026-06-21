@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.publictrace;
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchResponse;
+import com.farmtofolk.farmtofolk_ledger.analytics.ScanEventService;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmResponse;
@@ -41,6 +42,7 @@ public class PublicTraceService {
     private final FarmMediaRepository farmMediaRepository;
     private final PriceBreakdownRepository priceBreakdownRepository;
     private final TraceEventRepository traceEventRepository;
+    private final ScanEventService scanEventService;
 
     public PublicTraceService(
             QrCodeRepository qrCodeRepository,
@@ -51,7 +53,8 @@ public class PublicTraceService {
             VerificationEvidenceRepository verificationEvidenceRepository,
             FarmMediaRepository farmMediaRepository,
             PriceBreakdownRepository priceBreakdownRepository,
-            TraceEventRepository traceEventRepository
+            TraceEventRepository traceEventRepository,
+            ScanEventService scanEventService
     ) {
         this.qrCodeRepository = qrCodeRepository;
         this.batchRepository = batchRepository;
@@ -62,9 +65,16 @@ public class PublicTraceService {
         this.farmMediaRepository = farmMediaRepository;
         this.priceBreakdownRepository = priceBreakdownRepository;
         this.traceEventRepository = traceEventRepository;
+        this.scanEventService = scanEventService;
     }
 
     public PublicTraceResponse getPublicTrace(String publicToken) {
+        // Best-effort scan recording should never block the public trace response.
+        try {
+            scanEventService.recordScan(publicToken, null, null, null, null, null, null);
+        } catch (RuntimeException ignored) {
+        }
+
         // Resolve the public token to an active QR code.
         QrCode qrCode = qrCodeRepository.findByPublicTokenAndIsActiveTrue(publicToken)
                 .orElseThrow(() -> new RuntimeException("QR code not found"));
