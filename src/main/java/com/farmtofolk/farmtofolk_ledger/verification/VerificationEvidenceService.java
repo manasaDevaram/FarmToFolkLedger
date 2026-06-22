@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,13 +13,16 @@ public class VerificationEvidenceService {
 
     private final VerificationEvidenceRepository verificationEvidenceRepository;
     private final FarmVerificationRepository farmVerificationRepository;
+    private final PublicTraceCacheService publicTraceCacheService;
 
     public VerificationEvidenceService(
             VerificationEvidenceRepository verificationEvidenceRepository,
-            FarmVerificationRepository farmVerificationRepository
+            FarmVerificationRepository farmVerificationRepository,
+            PublicTraceCacheService publicTraceCacheService
     ) {
         this.verificationEvidenceRepository = verificationEvidenceRepository;
         this.farmVerificationRepository = farmVerificationRepository;
+        this.publicTraceCacheService = publicTraceCacheService;
     }
 
     public VerificationEvidenceResponse createVerificationEvidence(
@@ -26,7 +30,7 @@ public class VerificationEvidenceService {
             CreateVerificationEvidenceRequest request
     ) {
         // Make sure the evidence is linked to a real farm verification.
-        verifyFarmVerificationExists(verificationId);
+        FarmVerification farmVerification = findFarmVerification(verificationId);
 
         // Copy request data into a new VerificationEvidence entity.
         VerificationEvidence verificationEvidence = new VerificationEvidence();
@@ -35,12 +39,14 @@ public class VerificationEvidenceService {
 
         // Save the evidence and return API-friendly response data.
         VerificationEvidence savedVerificationEvidence = verificationEvidenceRepository.save(verificationEvidence);
+        // Clear QR page stable data because verification evidence changed.
+        publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
         return VerificationEvidenceResponse.from(savedVerificationEvidence);
     }
 
     public List<VerificationEvidenceResponse> getEvidenceForVerification(UUID verificationId) {
         // Make sure the verification exists before listing its evidence.
-        verifyFarmVerificationExists(verificationId);
+        findFarmVerification(verificationId);
 
         // Fetch evidence oldest first and convert each one to a response.
         return verificationEvidenceRepository.findByVerificationIdOrderByCreatedAtAsc(verificationId)
@@ -52,7 +58,10 @@ public class VerificationEvidenceService {
     public void deleteEvidence(UUID evidenceId) {
         // Load evidence first so missing IDs produce the expected message.
         VerificationEvidence verificationEvidence = findVerificationEvidence(evidenceId);
+        FarmVerification farmVerification = findFarmVerification(verificationEvidence.getVerificationId());
         verificationEvidenceRepository.delete(verificationEvidence);
+        // Clear QR page stable data because verification evidence changed.
+        publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
     }
 
     private VerificationEvidence findVerificationEvidence(UUID evidenceId) {
@@ -61,11 +70,10 @@ public class VerificationEvidenceService {
                 .orElseThrow(() -> new RuntimeException("Verification evidence not found"));
     }
 
-    private void verifyFarmVerificationExists(UUID verificationId) {
-        // Prevent creating or listing evidence for verifications that do not exist.
-        if (!farmVerificationRepository.existsById(verificationId)) {
-            throw new RuntimeException("Farm verification not found");
-        }
+    private FarmVerification findFarmVerification(UUID verificationId) {
+        // Reuse one not-found lookup rule for verification evidence operations.
+        return farmVerificationRepository.findById(verificationId)
+                .orElseThrow(() -> new RuntimeException("Farm verification not found"));
     }
 
     private void applyRequest(

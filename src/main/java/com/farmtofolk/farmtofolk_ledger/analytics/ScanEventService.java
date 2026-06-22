@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.analytics;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -20,6 +21,7 @@ public class ScanEventService {
         this.qrCodeRepository = qrCodeRepository;
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ScanEventResponse recordScan(
             String publicToken,
             String country,

@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.batch;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,15 +17,18 @@ public class BatchService {
     private final BatchRepository batchRepository;
     private final FarmRepository farmRepository;
     private final FarmerRepository farmerRepository;
+    private final PublicTraceCacheService publicTraceCacheService;
 
     public BatchService(
             BatchRepository batchRepository,
             FarmRepository farmRepository,
-            FarmerRepository farmerRepository
+            FarmerRepository farmerRepository,
+            PublicTraceCacheService publicTraceCacheService
     ) {
         this.batchRepository = batchRepository;
         this.farmRepository = farmRepository;
         this.farmerRepository = farmerRepository;
+        this.publicTraceCacheService = publicTraceCacheService;
     }
 
     public BatchResponse createBatch(CreateBatchRequest request) {
@@ -81,6 +85,8 @@ public class BatchService {
         applyRequest(batch, request);
 
         Batch savedBatch = batchRepository.save(batch);
+        // Clear QR page stable data because batch details changed.
+        publicTraceCacheService.evictStableDataForBatch(batchId);
         return BatchResponse.from(savedBatch);
     }
 

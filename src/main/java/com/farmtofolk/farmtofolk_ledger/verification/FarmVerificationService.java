@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,13 +14,16 @@ public class FarmVerificationService {
 
     private final FarmVerificationRepository farmVerificationRepository;
     private final FarmRepository farmRepository;
+    private final PublicTraceCacheService publicTraceCacheService;
 
     public FarmVerificationService(
             FarmVerificationRepository farmVerificationRepository,
-            FarmRepository farmRepository
+            FarmRepository farmRepository,
+            PublicTraceCacheService publicTraceCacheService
     ) {
         this.farmVerificationRepository = farmVerificationRepository;
         this.farmRepository = farmRepository;
+        this.publicTraceCacheService = publicTraceCacheService;
     }
 
     public FarmVerificationResponse createFarmVerification(
@@ -36,6 +40,8 @@ public class FarmVerificationService {
 
         // Save the verification and return API-friendly response data.
         FarmVerification savedFarmVerification = farmVerificationRepository.save(farmVerification);
+        // Clear QR page stable data because latest verification may have changed.
+        publicTraceCacheService.evictStableDataForFarm(farmId);
         return FarmVerificationResponse.from(savedFarmVerification);
     }
 
@@ -76,6 +82,8 @@ public class FarmVerificationService {
         applyRequest(farmVerification, request);
 
         FarmVerification savedFarmVerification = farmVerificationRepository.save(farmVerification);
+        // Clear QR page stable data because verification details changed.
+        publicTraceCacheService.evictStableDataForFarm(savedFarmVerification.getFarmId());
         return FarmVerificationResponse.from(savedFarmVerification);
     }
 

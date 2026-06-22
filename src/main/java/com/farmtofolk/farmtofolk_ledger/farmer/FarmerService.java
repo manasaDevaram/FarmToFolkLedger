@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.farmer;
 
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,9 +12,14 @@ import java.util.UUID;
 public class FarmerService {
 
     private final FarmerRepository farmerRepository;
+    private final PublicTraceCacheService publicTraceCacheService;
 
-    public FarmerService(FarmerRepository farmerRepository) {
+    public FarmerService(
+            FarmerRepository farmerRepository,
+            PublicTraceCacheService publicTraceCacheService
+    ) {
         this.farmerRepository = farmerRepository;
+        this.publicTraceCacheService = publicTraceCacheService;
     }
 
     public FarmerResponse createFarmer(CreateFarmerRequest request) {
@@ -46,6 +52,8 @@ public class FarmerService {
         applyRequest(farmer, request);
 
         Farmer savedFarmer = farmerRepository.save(farmer);
+        // Clear QR page stable data because farmer details changed.
+        publicTraceCacheService.evictStableDataForFarmer(farmerId);
         return FarmerResponse.from(savedFarmer);
     }
 
@@ -55,6 +63,8 @@ public class FarmerService {
         farmer.setActive(request.active());
 
         Farmer savedFarmer = farmerRepository.save(farmer);
+        // Clear QR page stable data because farmer status changed.
+        publicTraceCacheService.evictStableDataForFarmer(farmerId);
         return FarmerResponse.from(savedFarmer);
     }
 

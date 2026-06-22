@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.farm;
 
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,10 +14,16 @@ public class FarmService {
 
     private final FarmRepository farmRepository;
     private final FarmerRepository farmerRepository;
+    private final PublicTraceCacheService publicTraceCacheService;
 
-    public FarmService(FarmRepository farmRepository, FarmerRepository farmerRepository) {
+    public FarmService(
+            FarmRepository farmRepository,
+            FarmerRepository farmerRepository,
+            PublicTraceCacheService publicTraceCacheService
+    ) {
         this.farmRepository = farmRepository;
         this.farmerRepository = farmerRepository;
+        this.publicTraceCacheService = publicTraceCacheService;
     }
 
     public FarmResponse createFarm(CreateFarmRequest request) {
@@ -58,6 +65,8 @@ public class FarmService {
         applyRequest(farm, request);
 
         Farm savedFarm = farmRepository.save(farm);
+        // Clear QR page stable data because farm details changed.
+        publicTraceCacheService.evictStableDataForFarm(farmId);
         return FarmResponse.from(savedFarm);
     }
 

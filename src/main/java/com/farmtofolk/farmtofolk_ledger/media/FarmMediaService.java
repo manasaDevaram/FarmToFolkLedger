@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.media;
 
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,10 +14,16 @@ public class FarmMediaService {
 
     private final FarmMediaRepository farmMediaRepository;
     private final FarmRepository farmRepository;
+    private final PublicTraceCacheService publicTraceCacheService;
 
-    public FarmMediaService(FarmMediaRepository farmMediaRepository, FarmRepository farmRepository) {
+    public FarmMediaService(
+            FarmMediaRepository farmMediaRepository,
+            FarmRepository farmRepository,
+            PublicTraceCacheService publicTraceCacheService
+    ) {
         this.farmMediaRepository = farmMediaRepository;
         this.farmRepository = farmRepository;
+        this.publicTraceCacheService = publicTraceCacheService;
     }
 
     public FarmMediaResponse createFarmMedia(UUID farmId, CreateFarmMediaRequest request) {
@@ -30,6 +37,8 @@ public class FarmMediaService {
 
         // Save the media and return API-friendly response data.
         FarmMedia savedFarmMedia = farmMediaRepository.save(farmMedia);
+        // Clear QR page stable data because farm media changed.
+        publicTraceCacheService.evictStableDataForFarm(farmId);
         return FarmMediaResponse.from(savedFarmMedia);
     }
 
@@ -48,6 +57,8 @@ public class FarmMediaService {
         // Load media first so missing IDs produce the expected message.
         FarmMedia farmMedia = findFarmMedia(mediaId);
         farmMediaRepository.delete(farmMedia);
+        // Clear QR page stable data because farm media changed.
+        publicTraceCacheService.evictStableDataForFarm(farmMedia.getFarmId());
     }
 
     private FarmMedia findFarmMedia(UUID mediaId) {
