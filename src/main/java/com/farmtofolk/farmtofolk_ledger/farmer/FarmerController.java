@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.farmer;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -26,7 +27,7 @@ public class FarmerController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public FarmerResponse createFarmer(@RequestBody CreateFarmerRequest request) {
+    public FarmerResponse createFarmer(@Valid @RequestBody CreateFarmerRequest request) {
         return farmerService.createFarmer(request);
     }
 
@@ -43,7 +44,7 @@ public class FarmerController {
     @PutMapping("/{farmerId}")
     public FarmerResponse updateFarmer(
             @PathVariable UUID farmerId,
-            @RequestBody CreateFarmerRequest request
+            @Valid @RequestBody CreateFarmerRequest request
     ) {
         return farmerService.updateFarmer(farmerId, request);
     }
@@ -51,7 +52,7 @@ public class FarmerController {
     @PatchMapping("/{farmerId}/status")
     public FarmerResponse updateFarmerStatus(
             @PathVariable UUID farmerId,
-            @RequestBody UpdateFarmerStatusRequest request
+            @Valid @RequestBody UpdateFarmerStatusRequest request
     ) {
         return farmerService.updateFarmerStatus(farmerId, request);
     }

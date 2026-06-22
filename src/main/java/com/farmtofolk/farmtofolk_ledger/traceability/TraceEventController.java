@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.traceability;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +25,7 @@ public class TraceEventController {
     @ResponseStatus(HttpStatus.CREATED)
     public TraceEventResponse createTraceEvent(
             @PathVariable UUID batchId,
-            @RequestBody CreateTraceEventRequest request
+            @Valid @RequestBody CreateTraceEventRequest request
     ) {
         return traceEventService.createTraceEvent(batchId, request);
     }

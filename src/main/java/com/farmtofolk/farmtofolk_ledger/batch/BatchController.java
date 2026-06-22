@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.batch;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,7 +24,7 @@ public class BatchController {
 
     @PostMapping("/api/batches")
     @ResponseStatus(HttpStatus.CREATED)
-    public BatchResponse createBatch(@RequestBody CreateBatchRequest request) {
+    public BatchResponse createBatch(@Valid @RequestBody CreateBatchRequest request) {
         return batchService.createBatch(request);
     }
 
@@ -45,7 +46,7 @@ public class BatchController {
     @PutMapping("/api/batches/{batchId}")
     public BatchResponse updateBatch(
             @PathVariable UUID batchId,
-            @RequestBody CreateBatchRequest request
+            @Valid @RequestBody CreateBatchRequest request
     ) {
         return batchService.updateBatch(batchId, request);
     }

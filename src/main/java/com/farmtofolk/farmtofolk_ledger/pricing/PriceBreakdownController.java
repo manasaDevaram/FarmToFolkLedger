@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.pricing;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +25,7 @@ public class PriceBreakdownController {
     @ResponseStatus(HttpStatus.CREATED)
     public PriceBreakdownResponse createPriceBreakdown(
             @PathVariable UUID batchId,
-            @RequestBody CreatePriceBreakdownRequest request
+            @Valid @RequestBody CreatePriceBreakdownRequest request
     ) {
         return priceBreakdownService.createPriceBreakdown(batchId, request);
     }
@@ -37,7 +38,7 @@ public class PriceBreakdownController {
     @PutMapping("/api/batches/{batchId}/price-breakdown")
     public PriceBreakdownResponse updatePriceBreakdown(
             @PathVariable UUID batchId,
-            @RequestBody CreatePriceBreakdownRequest request
+            @Valid @RequestBody CreatePriceBreakdownRequest request
     ) {
         return priceBreakdownService.updatePriceBreakdown(batchId, request);
     }

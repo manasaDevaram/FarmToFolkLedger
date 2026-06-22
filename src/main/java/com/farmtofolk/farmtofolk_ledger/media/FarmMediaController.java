@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.media;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +26,7 @@ public class FarmMediaController {
     @ResponseStatus(HttpStatus.CREATED)
     public FarmMediaResponse createFarmMedia(
             @PathVariable UUID farmId,
-            @RequestBody CreateFarmMediaRequest request
+            @Valid @RequestBody CreateFarmMediaRequest request
     ) {
         return farmMediaService.createFarmMedia(farmId, request);
     }

@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,7 +26,7 @@ public class FarmVerificationController {
     @ResponseStatus(HttpStatus.CREATED)
     public FarmVerificationResponse createFarmVerification(
             @PathVariable UUID farmId,
-            @RequestBody CreateFarmVerificationRequest request
+            @Valid @RequestBody CreateFarmVerificationRequest request
     ) {
         return farmVerificationService.createFarmVerification(farmId, request);
     }
@@ -48,7 +49,7 @@ public class FarmVerificationController {
     @PutMapping("/api/verifications/{verificationId}")
     public FarmVerificationResponse updateFarmVerification(
             @PathVariable UUID verificationId,
-            @RequestBody CreateFarmVerificationRequest request
+            @Valid @RequestBody CreateFarmVerificationRequest request
     ) {
         return farmVerificationService.updateFarmVerification(verificationId, request);
     }

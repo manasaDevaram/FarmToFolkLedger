@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +26,7 @@ public class VerificationEvidenceController {
     @ResponseStatus(HttpStatus.CREATED)
     public VerificationEvidenceResponse createVerificationEvidence(
             @PathVariable UUID verificationId,
-            @RequestBody CreateVerificationEvidenceRequest request
+            @Valid @RequestBody CreateVerificationEvidenceRequest request
     ) {
         return verificationEvidenceService.createVerificationEvidence(verificationId, request);
     }
