@@ -1,5 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.publictrace;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import org.springframework.boot.autoconfigure.cache.RedisCacheManagerBuilderCustomizer;
 import org.springframework.cache.Cache;
 import org.springframework.cache.interceptor.CacheErrorHandler;
@@ -15,13 +18,22 @@ import java.time.Duration;
 public class PublicTraceCacheConfig {
 
     @Bean
-    RedisCacheManagerBuilderCustomizer publicTraceStableCacheCustomizer() {
+    RedisCacheManagerBuilderCustomizer publicTraceStableCacheCustomizer(ObjectMapper objectMapper) {
+        ObjectMapper redisObjectMapper = objectMapper.copy();
+        redisObjectMapper.activateDefaultTyping(
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.EVERYTHING,
+                JsonTypeInfo.As.PROPERTY
+        );
+        GenericJackson2JsonRedisSerializer.registerNullValueSerializer(redisObjectMapper, null);
+        GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(redisObjectMapper);
+
         return builder -> builder.withCacheConfiguration(
                 "publicTraceStable",
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofMinutes(10))
                         .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(
-                                new GenericJackson2JsonRedisSerializer()
+                                serializer
                         ))
         );
     }
