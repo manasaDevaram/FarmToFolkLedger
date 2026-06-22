@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
@@ -63,7 +64,7 @@ public class FarmVerificationService {
         // Return the newest verification for this farm.
         FarmVerification farmVerification = farmVerificationRepository
                 .findFirstByFarmIdOrderByVerificationDateDesc(farmId)
-                .orElseThrow(() -> new RuntimeException("Farm verification not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farm verification not found"));
         return FarmVerificationResponse.from(farmVerification);
     }
 
@@ -90,13 +91,13 @@ public class FarmVerificationService {
     private FarmVerification findFarmVerification(UUID verificationId) {
         // Reuse one not-found lookup rule for verification reads and updates.
         return farmVerificationRepository.findById(verificationId)
-                .orElseThrow(() -> new RuntimeException("Farm verification not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farm verification not found"));
     }
 
     private void verifyFarmExists(UUID farmId) {
         // Prevent creating or listing verifications for farms that do not exist.
         if (!farmRepository.existsById(farmId)) {
-            throw new RuntimeException("Farm not found");
+            throw new ResourceNotFoundException("Farm not found");
         }
     }
 

@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,13 +68,13 @@ public class VerificationEvidenceService {
     private VerificationEvidence findVerificationEvidence(UUID evidenceId) {
         // Reuse one not-found lookup rule for evidence delete operations.
         return verificationEvidenceRepository.findById(evidenceId)
-                .orElseThrow(() -> new RuntimeException("Verification evidence not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Verification evidence not found"));
     }
 
     private FarmVerification findFarmVerification(UUID verificationId) {
         // Reuse one not-found lookup rule for verification evidence operations.
         return farmVerificationRepository.findById(verificationId)
-                .orElseThrow(() -> new RuntimeException("Farm verification not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farm verification not found"));
     }
 
     private void applyRequest(

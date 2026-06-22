@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.qr;
 
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +38,7 @@ public class QrCodeService {
 
         // Return the active QR code for this batch.
         QrCode qrCode = qrCodeRepository.findFirstByBatchIdAndIsActiveTrue(batchId)
-                .orElseThrow(() -> new RuntimeException("QR code not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
         return QrCodeResponse.from(qrCode);
     }
 
@@ -57,7 +58,7 @@ public class QrCodeService {
     private void verifyBatchExists(UUID batchId) {
         // Prevent creating or reading QR codes for batches that do not exist.
         if (!batchRepository.existsById(batchId)) {
-            throw new RuntimeException("Batch not found");
+            throw new ResourceNotFoundException("Batch not found");
         }
     }
 }

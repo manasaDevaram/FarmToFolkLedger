@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.media;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
@@ -64,13 +65,13 @@ public class FarmMediaService {
     private FarmMedia findFarmMedia(UUID mediaId) {
         // Reuse one not-found lookup rule for media delete operations.
         return farmMediaRepository.findById(mediaId)
-                .orElseThrow(() -> new RuntimeException("Farm media not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farm media not found"));
     }
 
     private void verifyFarmExists(UUID farmId) {
         // Prevent creating or listing media for farms that do not exist.
         if (!farmRepository.existsById(farmId)) {
-            throw new RuntimeException("Farm not found");
+            throw new ResourceNotFoundException("Farm not found");
         }
     }
 

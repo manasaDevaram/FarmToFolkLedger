@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.farm;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
@@ -73,13 +74,13 @@ public class FarmService {
     private Farm findFarm(UUID farmId) {
         // Reuse one not-found lookup rule for all farm reads and updates.
         return farmRepository.findById(farmId)
-                .orElseThrow(() -> new RuntimeException("Farm not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
     }
 
     private void verifyFarmerExists(UUID farmerId) {
         // Prevent creating or updating farms for farmers that do not exist.
         if (!farmerRepository.existsById(farmerId)) {
-            throw new RuntimeException("Farmer not found");
+            throw new ResourceNotFoundException("Farmer not found");
         }
     }
 

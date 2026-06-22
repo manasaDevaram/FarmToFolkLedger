@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.analytics;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,7 @@ public class ScanEventService {
     ) {
         // Resolve the public token to an active QR code before recording a scan.
         QrCode qrCode = qrCodeRepository.findByPublicTokenAndIsActiveTrue(publicToken)
-                .orElseThrow(() -> new RuntimeException("QR code not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
 
         // Store only analytics metadata and the hashed IP value.
         ScanEvent scanEvent = new ScanEvent();

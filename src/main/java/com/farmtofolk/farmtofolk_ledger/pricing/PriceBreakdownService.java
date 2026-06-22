@@ -1,6 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.pricing;
 
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
+import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,20 +60,20 @@ public class PriceBreakdownService {
     private PriceBreakdown findPriceBreakdown(UUID batchId) {
         // Reuse one not-found lookup rule for price breakdown reads and updates.
         return priceBreakdownRepository.findByBatchId(batchId)
-                .orElseThrow(() -> new RuntimeException("Price breakdown not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Price breakdown not found"));
     }
 
     private void verifyPriceBreakdownDoesNotExist(UUID batchId) {
         // Prevent creating a second price breakdown for the same batch.
         if (priceBreakdownRepository.findByBatchId(batchId).isPresent()) {
-            throw new RuntimeException("Price breakdown already exists");
+            throw new ConflictException("Price breakdown already exists");
         }
     }
 
     private void verifyBatchExists(UUID batchId) {
         // Prevent creating or updating price breakdowns for batches that do not exist.
         if (!batchRepository.existsById(batchId)) {
-            throw new RuntimeException("Batch not found");
+            throw new ResourceNotFoundException("Batch not found");
         }
     }
 

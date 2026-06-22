@@ -1,5 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.batch;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
@@ -93,31 +95,31 @@ public class BatchService {
     private Batch findBatch(UUID batchId) {
         // Reuse one not-found lookup rule for all batch reads and updates.
         return batchRepository.findById(batchId)
-                .orElseThrow(() -> new RuntimeException("Batch not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
     }
 
     private void verifyFarmerExists(UUID farmerId) {
         // Prevent creating or listing batches for farmers that do not exist.
         if (!farmerRepository.existsById(farmerId)) {
-            throw new RuntimeException("Farmer not found");
+            throw new ResourceNotFoundException("Farmer not found");
         }
     }
 
     private void verifyFarmExists(UUID farmId) {
         // Prevent listing batches for farms that do not exist.
         if (!farmRepository.existsById(farmId)) {
-            throw new RuntimeException("Farm not found");
+            throw new ResourceNotFoundException("Farm not found");
         }
     }
 
     private void verifyFarmBelongsToFarmer(UUID farmId, UUID farmerId) {
         // Load the farm so we can validate ownership against the farmer ID.
         Farm farm = farmRepository.findById(farmId)
-                .orElseThrow(() -> new RuntimeException("Farm not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
 
         // Prevent batches from linking one farmer to another farmer's farm.
         if (!farm.getFarmerId().equals(farmerId)) {
-            throw new RuntimeException("Farm does not belong to farmer");
+            throw new BadRequestException("Farm does not belong to farmer");
         }
     }
 

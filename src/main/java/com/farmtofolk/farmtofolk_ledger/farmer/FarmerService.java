@@ -1,5 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.farmer;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,7 +72,7 @@ public class FarmerService {
     private Farmer findFarmer(UUID farmerId) {
         // Reuse one not-found lookup rule for all farmer reads and updates.
         return farmerRepository.findById(farmerId)
-                .orElseThrow(() -> new RuntimeException("Farmer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found"));
     }
 
     private void applyRequest(Farmer farmer, CreateFarmerRequest request) {

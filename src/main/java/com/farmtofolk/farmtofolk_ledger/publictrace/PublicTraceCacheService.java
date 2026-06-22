@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.publictrace;
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchResponse;
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmResponse;
@@ -65,15 +66,15 @@ public class PublicTraceCacheService {
     public CachedPublicTraceStableData getStableData(String publicToken) {
         // Resolve the QR token so stable data can be loaded from the batch.
         QrCode qrCode = qrCodeRepository.findByPublicTokenAndIsActiveTrue(publicToken)
-                .orElseThrow(() -> new RuntimeException("QR code not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
 
         // Load the required stable trace objects.
         Batch batch = batchRepository.findById(qrCode.getBatchId())
-                .orElseThrow(() -> new RuntimeException("Batch not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
         Farmer farmer = farmerRepository.findById(batch.getFarmerId())
-                .orElseThrow(() -> new RuntimeException("Farmer not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found"));
         Farm farm = farmRepository.findById(batch.getFarmId())
-                .orElseThrow(() -> new RuntimeException("Farm not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
 
         // Load optional verification and evidence data when available.
         FarmVerification latestVerification = farmVerificationRepository

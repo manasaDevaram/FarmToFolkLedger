@@ -1,6 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.traceability;
 
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
+import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,14 +58,14 @@ public class TraceEventService {
     private void verifyBatchExists(UUID batchId) {
         // Prevent creating or listing trace events for batches that do not exist.
         if (!batchRepository.existsById(batchId)) {
-            throw new RuntimeException("Batch not found");
+            throw new ResourceNotFoundException("Batch not found");
         }
     }
 
     private void verifyAllowedEventType(String eventType) {
         // Keep invalid trace event types out until we introduce enums later.
         if (!ALLOWED_EVENT_TYPES.contains(eventType)) {
-            throw new RuntimeException("Invalid trace event type");
+            throw new BadRequestException("Invalid trace event type");
         }
     }
 

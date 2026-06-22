@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.publictrace;
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.analytics.ScanEventService;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
 import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
@@ -51,14 +52,14 @@ public class PublicTraceService {
 
         // Resolve the public token to an active QR code.
         QrCode qrCode = qrCodeRepository.findByPublicTokenAndIsActiveTrue(publicToken)
-                .orElseThrow(() -> new RuntimeException("QR code not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
 
         // Load stable page sections through Redis cache with PostgreSQL fallback.
         CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 
         // Load the batch live only to anchor frequently changing sections to the QR batch ID.
         Batch batch = batchRepository.findById(qrCode.getBatchId())
-                .orElseThrow(() -> new RuntimeException("Batch not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
 
         // Always load price and trace events live because they change more often.
         PriceBreakdownResponse priceBreakdown = priceBreakdownRepository.findByBatchId(batch.getId())
