@@ -3,14 +3,14 @@ spring:
     name: farmtofolk-ledger
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/farmtofolk
-    username: manasadevaram
-    password:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/farmtofolk}
+    username: ${DB_USERNAME:manasadevaram}
+    password: ${DB_PASSWORD:}
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       repositories:
         enabled: false
 
@@ -19,10 +19,10 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:update}
 
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:true}
 
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${HIBERNATE_FORMAT_SQL:true}
