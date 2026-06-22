@@ -38,6 +38,7 @@ public class ScanEventService {
         // Store only analytics metadata and the hashed IP value.
         ScanEvent scanEvent = new ScanEvent();
         scanEvent.setQrCodeId(qrCode.getId());
+        scanEvent.setBatchId(qrCode.getBatchId());
         scanEvent.setPublicToken(publicToken);
         scanEvent.setScannedAt(LocalDateTime.now());
         scanEvent.setCountry(country);

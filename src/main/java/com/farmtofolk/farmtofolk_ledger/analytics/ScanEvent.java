@@ -22,6 +22,9 @@ public class ScanEvent {
     @Column(name = "qr_code_id", nullable = false)
     private UUID qrCodeId;
 
+    @Column(name = "batch_id", nullable = false)
+    private UUID batchId;
+
     @Column(name = "public_token")
     private String publicToken;
 
@@ -61,6 +64,14 @@ public class ScanEvent {
 
     public void setQrCodeId(UUID qrCodeId) {
         this.qrCodeId = qrCodeId;
+    }
+
+    public UUID getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(UUID batchId) {
+        this.batchId = batchId;
     }
 
     public String getPublicToken() {

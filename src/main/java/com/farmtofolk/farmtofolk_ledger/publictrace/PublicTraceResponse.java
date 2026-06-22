@@ -21,7 +21,6 @@ public record PublicTraceResponse(
         List<VerificationEvidenceResponse> verificationEvidence,
         List<FarmMediaResponse> farmMedia,
         PriceBreakdownResponse priceBreakdown,
-        List<TraceEventResponse> traceEvents,
-        long scanCount
+        List<TraceEventResponse> traceEvents
 ) {
 }

@@ -68,7 +68,6 @@ public class PublicTraceService {
                 .stream()
                 .map(TraceEventResponse::from)
                 .toList();
-        long scanCount = scanEventService.getScanCount(qrCode.getId());
 
         return new PublicTraceResponse(
                 QrCodeResponse.from(qrCode),
@@ -79,8 +78,7 @@ public class PublicTraceService {
                 stableData.verificationEvidence(),
                 stableData.farmMedia(),
                 priceBreakdown,
-                traceEvents,
-                scanCount
+                traceEvents
         );
     }
 }
