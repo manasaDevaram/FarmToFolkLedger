@@ -85,12 +85,14 @@ public class PublicTraceCacheService {
                 : verificationEvidenceRepository
                         .findByVerificationIdOrderByCreatedAtAsc(latestVerification.getId())
                         .stream()
+                        .filter(evidence -> Boolean.TRUE.equals(evidence.getIsPublic()))
                         .map(VerificationEvidenceResponse::from)
                         .toList();
 
         // Load farm media as stable public trace content.
         List<FarmMediaResponse> farmMedia = farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farm.getId())
                 .stream()
+                .filter(media -> Boolean.TRUE.equals(media.getIsPublic()))
                 .map(FarmMediaResponse::from)
                 .toList();
 
