@@ -1,0 +1,67 @@
+services:
+  farmtofolk-postgres:
+    image: postgres:17
+    container_name: farmtofolk-postgres
+    environment:
+      POSTGRES_DB: farmtofolk_ledger
+      POSTGRES_USER: farmtofolk
+      POSTGRES_PASSWORD: farmtofolk
+    ports:
+      - "5432:5432"
+    volumes:
+      - farmtofolk-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U farmtofolk -d farmtofolk_ledger"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      farmtofolk-network:
+        aliases:
+          - postgres
+
+  farmtofolk-redis:
+    image: redis:7
+    container_name: farmtofolk-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      farmtofolk-network:
+        aliases:
+          - redis
+
+  farmtofolk-api:
+    build: .
+    container_name: farmtofolk-api
+    depends_on:
+      farmtofolk-postgres:
+        condition: service_healthy
+      farmtofolk-redis:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/farmtofolk_ledger
+      DB_USERNAME: farmtofolk
+      DB_PASSWORD: farmtofolk
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JPA_DDL_AUTO: update
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-farmtofolk-ledger-dev}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-dummy-access-key}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummy-secret-key}
+    ports:
+      - "8080:8080"
+    networks:
+      - farmtofolk-network
+
+volumes:
+  farmtofolk-postgres-data:
+
+networks:
+  farmtofolk-network:
