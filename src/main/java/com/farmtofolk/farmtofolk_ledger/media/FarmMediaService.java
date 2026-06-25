@@ -10,11 +10,20 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @Transactional
 public class FarmMediaService {
+
+    private static final Set<String> FARM_MEDIA_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "video/mp4",
+            "video/quicktime"
+    );
 
     private final FarmMediaRepository farmMediaRepository;
     private final FarmRepository farmRepository;
@@ -54,7 +63,7 @@ public class FarmMediaService {
         verifyFarmExists(farmId);
 
         // Store the file in S3 and keep only metadata in PostgreSQL.
-        StoredFileResponse storedFile = storageService.upload(file, "farm-media/" + farmId);
+        StoredFileResponse storedFile = storageService.upload(file, "farm-media/" + farmId, FARM_MEDIA_CONTENT_TYPES);
 
         FarmMedia farmMedia = new FarmMedia();
         farmMedia.setFarmId(farmId);

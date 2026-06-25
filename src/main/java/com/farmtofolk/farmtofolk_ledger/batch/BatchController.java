@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +32,16 @@ public class BatchController {
     @GetMapping("/api/batches/{batchId}")
     public BatchResponse getBatch(@PathVariable UUID batchId) {
         return batchService.getBatch(batchId);
+    }
+
+    @GetMapping("/api/batches")
+    public List<BatchListResponse> getAllBatches(
+            @RequestParam(required = false) UUID farmerId,
+            @RequestParam(required = false) UUID farmId,
+            @RequestParam(required = false) String cropName,
+            @RequestParam(required = false) String status
+    ) {
+        return batchService.getAllBatches(farmerId, farmId, cropName, status);
     }
 
     @GetMapping("/api/farmers/{farmerId}/batches")

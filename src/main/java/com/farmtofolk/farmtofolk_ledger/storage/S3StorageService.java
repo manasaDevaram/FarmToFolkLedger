@@ -37,7 +37,12 @@ public class S3StorageService implements StorageService {
 
     @Override
     public StoredFileResponse upload(MultipartFile file, String folderPath) {
-        validateFile(file);
+        return upload(file, folderPath, ALLOWED_CONTENT_TYPES);
+    }
+
+    @Override
+    public StoredFileResponse upload(MultipartFile file, String folderPath, Set<String> allowedContentTypes) {
+        validateFile(file, allowedContentTypes);
 
         String originalFilename = file.getOriginalFilename() == null ? "file" : file.getOriginalFilename();
         String contentType = file.getContentType();
@@ -83,7 +88,7 @@ public class S3StorageService implements StorageService {
         }
     }
 
-    private void validateFile(MultipartFile file) {
+    private void validateFile(MultipartFile file, Set<String> allowedContentTypes) {
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("File must not be empty");
         }
@@ -92,7 +97,7 @@ public class S3StorageService implements StorageService {
             throw new BadRequestException("File too large");
         }
 
-        if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
+        if (!allowedContentTypes.contains(file.getContentType())) {
             throw new BadRequestException("Unsupported content type");
         }
 

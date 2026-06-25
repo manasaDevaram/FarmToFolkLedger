@@ -1,13 +1,18 @@
 package com.farmtofolk.farmtofolk_ledger.farm;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -44,6 +49,34 @@ public class FarmService {
         // Load one farm by ID and convert it to a response.
         Farm farm = findFarm(farmId);
         return FarmResponse.from(farm);
+    }
+
+    public List<FarmListResponse> getAllFarms(
+            UUID farmerId,
+            String village,
+            String district,
+            String state,
+            String farmingType
+    ) {
+        // Fetch farms for admin lists and selectors, then apply simple optional filters.
+        List<Farm> farms = farmRepository.findAll()
+                .stream()
+                .filter(farm -> farmerId == null || farmerId.equals(farm.getFarmerId()))
+                .filter(farm -> matches(farm.getVillage(), village))
+                .filter(farm -> matches(farm.getDistrict(), district))
+                .filter(farm -> matches(farm.getState(), state))
+                .filter(farm -> matches(farm.getFarmingType(), farmingType))
+                .toList();
+
+        Map<UUID, Farmer> farmersById = farmerRepository.findAllById(
+                        farms.stream().map(Farm::getFarmerId).filter(Objects::nonNull).collect(Collectors.toSet())
+                )
+                .stream()
+                .collect(Collectors.toMap(Farmer::getId, Function.identity()));
+
+        return farms.stream()
+                .map(farm -> FarmListResponse.from(farm, farmerName(farm.getFarmerId(), farmersById)))
+                .toList();
     }
 
     public List<FarmResponse> getFarmsByFarmer(UUID farmerId) {
@@ -95,5 +128,14 @@ public class FarmService {
         farm.setLongitude(request.longitude());
         farm.setSizeAcres(request.sizeAcres());
         farm.setFarmingType(request.farmingType());
+    }
+
+    private boolean matches(String actual, String expected) {
+        return expected == null || expected.isBlank() || (actual != null && actual.equalsIgnoreCase(expected));
+    }
+
+    private String farmerName(UUID farmerId, Map<UUID, Farmer> farmersById) {
+        Farmer farmer = farmersById.get(farmerId);
+        return farmer == null ? null : farmer.getName();
     }
 }

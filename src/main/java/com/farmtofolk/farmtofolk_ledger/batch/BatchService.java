@@ -4,13 +4,18 @@ import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
+import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -52,6 +57,41 @@ public class BatchService {
         // Load one batch by ID and convert it to a response.
         Batch batch = findBatch(batchId);
         return BatchResponse.from(batch);
+    }
+
+    public List<BatchListResponse> getAllBatches(
+            UUID farmerId,
+            UUID farmId,
+            String cropName,
+            String status
+    ) {
+        // Fetch batches for admin lists and apply simple optional filters.
+        List<Batch> batches = batchRepository.findAll()
+                .stream()
+                .filter(batch -> farmerId == null || farmerId.equals(batch.getFarmerId()))
+                .filter(batch -> farmId == null || farmId.equals(batch.getFarmId()))
+                .filter(batch -> matches(batch.getCropName(), cropName))
+                .filter(batch -> matches(batch.getStatus(), status))
+                .toList();
+
+        Map<UUID, Farmer> farmersById = farmerRepository.findAllById(
+                        batches.stream().map(Batch::getFarmerId).filter(Objects::nonNull).collect(Collectors.toSet())
+                )
+                .stream()
+                .collect(Collectors.toMap(Farmer::getId, Function.identity()));
+        Map<UUID, Farm> farmsById = farmRepository.findAllById(
+                        batches.stream().map(Batch::getFarmId).filter(Objects::nonNull).collect(Collectors.toSet())
+                )
+                .stream()
+                .collect(Collectors.toMap(Farm::getId, Function.identity()));
+
+        return batches.stream()
+                .map(batch -> BatchListResponse.from(
+                        batch,
+                        farmerName(batch.getFarmerId(), farmersById),
+                        farmName(batch.getFarmId(), farmsById)
+                ))
+                .toList();
     }
 
     public List<BatchResponse> getBatchesByFarmer(UUID farmerId) {
@@ -136,5 +176,19 @@ public class BatchService {
         batch.setPackedDate(request.packedDate());
         batch.setBestBeforeDate(request.bestBeforeDate());
         batch.setStatus(request.status());
+    }
+
+    private boolean matches(String actual, String expected) {
+        return expected == null || expected.isBlank() || (actual != null && actual.equalsIgnoreCase(expected));
+    }
+
+    private String farmerName(UUID farmerId, Map<UUID, Farmer> farmersById) {
+        Farmer farmer = farmersById.get(farmerId);
+        return farmer == null ? null : farmer.getName();
+    }
+
+    private String farmName(UUID farmId, Map<UUID, Farm> farmsById) {
+        Farm farm = farmsById.get(farmId);
+        return farm == null ? null : farm.getFarmName();
     }
 }

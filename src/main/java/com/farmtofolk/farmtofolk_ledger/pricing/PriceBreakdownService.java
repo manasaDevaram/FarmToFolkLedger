@@ -49,8 +49,13 @@ public class PriceBreakdownService {
         // Make sure the batch still exists before updating its price breakdown.
         verifyBatchExists(batchId);
 
-        // Load the existing price breakdown, update its fields, then save it.
-        PriceBreakdown priceBreakdown = findPriceBreakdown(batchId);
+        // Update existing price data, or create it if this batch does not have one yet.
+        PriceBreakdown priceBreakdown = priceBreakdownRepository.findByBatchId(batchId)
+                .orElseGet(() -> {
+                    PriceBreakdown newPriceBreakdown = new PriceBreakdown();
+                    newPriceBreakdown.setBatchId(batchId);
+                    return newPriceBreakdown;
+                });
         applyRequest(priceBreakdown, request);
 
         PriceBreakdown savedPriceBreakdown = priceBreakdownRepository.save(priceBreakdown);

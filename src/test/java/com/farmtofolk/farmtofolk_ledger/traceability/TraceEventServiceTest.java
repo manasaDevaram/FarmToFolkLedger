@@ -32,7 +32,7 @@ class TraceEventServiceTest {
         when(batchRepository.existsById(batchId)).thenReturn(true);
 
         CreateTraceEventRequest request = new CreateTraceEventRequest(
-                "PACKED",
+                "IN_TRANSIT",
                 LocalDateTime.now(),
                 null,
                 null,

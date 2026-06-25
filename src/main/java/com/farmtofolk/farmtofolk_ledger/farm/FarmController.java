@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,6 +33,17 @@ public class FarmController {
     @GetMapping("/api/farms/{farmId}")
     public FarmResponse getFarm(@PathVariable UUID farmId) {
         return farmService.getFarm(farmId);
+    }
+
+    @GetMapping("/api/farms")
+    public List<FarmListResponse> getAllFarms(
+            @RequestParam(required = false) UUID farmerId,
+            @RequestParam(required = false) String village,
+            @RequestParam(required = false) String district,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String farmingType
+    ) {
+        return farmService.getAllFarms(farmerId, village, district, state, farmingType);
     }
 
     @GetMapping("/api/farmers/{farmerId}/farms")

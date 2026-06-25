@@ -42,9 +42,10 @@ public class VerificationEvidenceController {
     public VerificationEvidenceResponse uploadVerificationEvidence(
             @PathVariable UUID verificationId,
             @RequestParam MultipartFile file,
-            @RequestParam(required = false) String caption
+            @RequestParam(required = false) String caption,
+            @RequestParam(required = false) Boolean isPublic
     ) {
-        return verificationEvidenceService.uploadVerificationEvidence(verificationId, file, caption);
+        return verificationEvidenceService.uploadVerificationEvidence(verificationId, file, caption, isPublic);
     }
 
     @GetMapping("/api/verifications/{verificationId}/evidence")

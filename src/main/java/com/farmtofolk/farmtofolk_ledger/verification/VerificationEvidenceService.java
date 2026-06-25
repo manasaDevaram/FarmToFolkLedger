@@ -9,11 +9,21 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 @Transactional
 public class VerificationEvidenceService {
+
+    private static final Set<String> VERIFICATION_EVIDENCE_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "video/mp4",
+            "video/quicktime",
+            "application/pdf"
+    );
 
     private final VerificationEvidenceRepository verificationEvidenceRepository;
     private final FarmVerificationRepository farmVerificationRepository;
@@ -54,13 +64,18 @@ public class VerificationEvidenceService {
     public VerificationEvidenceResponse uploadVerificationEvidence(
             UUID verificationId,
             MultipartFile file,
-            String caption
+            String caption,
+            Boolean isPublic
     ) {
         // Make sure the uploaded evidence is linked to a real farm verification.
         FarmVerification farmVerification = findFarmVerification(verificationId);
 
         // Store the file in S3 and keep only metadata in PostgreSQL.
-        StoredFileResponse storedFile = storageService.upload(file, "verification-evidence/" + verificationId);
+        StoredFileResponse storedFile = storageService.upload(
+                file,
+                "verification-evidence/" + verificationId,
+                VERIFICATION_EVIDENCE_CONTENT_TYPES
+        );
 
         VerificationEvidence verificationEvidence = new VerificationEvidence();
         verificationEvidence.setVerificationId(verificationId);
@@ -71,7 +86,7 @@ public class VerificationEvidenceService {
         verificationEvidence.setContentType(storedFile.contentType());
         verificationEvidence.setSizeBytes(storedFile.sizeBytes());
         verificationEvidence.setCaption(caption);
-        verificationEvidence.setIsPublic(true);
+        verificationEvidence.setIsPublic(isPublic);
 
         VerificationEvidence savedVerificationEvidence = verificationEvidenceRepository.save(verificationEvidence);
         // Clear QR page stable data so uploaded evidence appears in public trace.

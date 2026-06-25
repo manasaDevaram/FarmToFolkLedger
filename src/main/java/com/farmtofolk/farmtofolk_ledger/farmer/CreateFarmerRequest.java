@@ -2,15 +2,16 @@ package com.farmtofolk.farmtofolk_ledger.farmer;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
 
 public record CreateFarmerRequest(
-        @NotBlank
         String farmerCode,
         @NotBlank
         String name,
         @NotBlank
+        @Pattern(regexp = "\\d{10}", message = "must be 10 digits")
         String phone,
         @NotBlank
         String village,

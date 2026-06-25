@@ -38,7 +38,7 @@ public class QrCodeService {
 
         // Return the active QR code for this batch.
         QrCode qrCode = qrCodeRepository.findFirstByBatchIdAndIsActiveTrue(batchId)
-                .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("No active QR code found for this batch"));
         return QrCodeResponse.from(qrCode);
     }
 
