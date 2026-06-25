@@ -16,6 +16,7 @@ public class TraceEventService {
 
     private static final Set<String> ALLOWED_EVENT_TYPES = Set.of(
             "HARVESTED",
+            "PACKED",
             "RECEIVED_AT_MARKET",
             "SOLD"
     );
