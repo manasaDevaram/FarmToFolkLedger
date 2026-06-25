@@ -7,6 +7,11 @@ spring:
     username: ${DB_USERNAME:manasadevaram}
     password: ${DB_PASSWORD:}
 
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -26,3 +31,11 @@ spring:
     properties:
       hibernate:
         format_sql: ${HIBERNATE_FORMAT_SQL:true}
+
+storage:
+  s3:
+    region: ${AWS_REGION:ap-south-1}
+    bucket: ${AWS_S3_BUCKET:}
+    access-key: ${AWS_ACCESS_KEY_ID:dummy-access-key}
+    secret-key: ${AWS_SECRET_ACCESS_KEY:dummy-secret-key}
+    presigned-url-expiry-minutes: ${AWS_S3_PRESIGNED_EXPIRY_MINUTES:10}

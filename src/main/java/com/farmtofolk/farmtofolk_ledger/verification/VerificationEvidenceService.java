@@ -2,8 +2,11 @@ package com.farmtofolk.farmtofolk_ledger.verification;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
+import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,15 +18,18 @@ public class VerificationEvidenceService {
     private final VerificationEvidenceRepository verificationEvidenceRepository;
     private final FarmVerificationRepository farmVerificationRepository;
     private final PublicTraceCacheService publicTraceCacheService;
+    private final StorageService storageService;
 
     public VerificationEvidenceService(
             VerificationEvidenceRepository verificationEvidenceRepository,
             FarmVerificationRepository farmVerificationRepository,
-            PublicTraceCacheService publicTraceCacheService
+            PublicTraceCacheService publicTraceCacheService,
+            StorageService storageService
     ) {
         this.verificationEvidenceRepository = verificationEvidenceRepository;
         this.farmVerificationRepository = farmVerificationRepository;
         this.publicTraceCacheService = publicTraceCacheService;
+        this.storageService = storageService;
     }
 
     public VerificationEvidenceResponse createVerificationEvidence(
@@ -41,6 +47,34 @@ public class VerificationEvidenceService {
         // Save the evidence and return API-friendly response data.
         VerificationEvidence savedVerificationEvidence = verificationEvidenceRepository.save(verificationEvidence);
         // Clear QR page stable data because verification evidence changed.
+        publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
+        return VerificationEvidenceResponse.from(savedVerificationEvidence);
+    }
+
+    public VerificationEvidenceResponse uploadVerificationEvidence(
+            UUID verificationId,
+            MultipartFile file,
+            String caption
+    ) {
+        // Make sure the uploaded evidence is linked to a real farm verification.
+        FarmVerification farmVerification = findFarmVerification(verificationId);
+
+        // Store the file in S3 and keep only metadata in PostgreSQL.
+        StoredFileResponse storedFile = storageService.upload(file, "verification-evidence/" + verificationId);
+
+        VerificationEvidence verificationEvidence = new VerificationEvidence();
+        verificationEvidence.setVerificationId(verificationId);
+        verificationEvidence.setFileType(storedFile.contentType());
+        verificationEvidence.setFileUrl(storedFile.fileUrl());
+        verificationEvidence.setFileKey(storedFile.fileKey());
+        verificationEvidence.setFileHash(null);
+        verificationEvidence.setContentType(storedFile.contentType());
+        verificationEvidence.setSizeBytes(storedFile.sizeBytes());
+        verificationEvidence.setCaption(caption);
+        verificationEvidence.setIsPublic(true);
+
+        VerificationEvidence savedVerificationEvidence = verificationEvidenceRepository.save(verificationEvidence);
+        // Clear QR page stable data so uploaded evidence appears in public trace.
         publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
         return VerificationEvidenceResponse.from(savedVerificationEvidence);
     }

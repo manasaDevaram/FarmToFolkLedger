@@ -28,8 +28,17 @@ public class VerificationEvidence {
     @Column(name = "file_url", nullable = false)
     private String fileUrl;
 
+    @Column(name = "file_key")
+    private String fileKey;
+
     @Column(name = "file_hash")
     private String fileHash;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "size_bytes")
+    private Long sizeBytes;
 
     @Column(columnDefinition = "TEXT")
     private String caption;
@@ -83,12 +92,36 @@ public class VerificationEvidence {
         this.fileUrl = fileUrl;
     }
 
+    public String getFileKey() {
+        return fileKey;
+    }
+
+    public void setFileKey(String fileKey) {
+        this.fileKey = fileKey;
+    }
+
     public String getFileHash() {
         return fileHash;
     }
 
     public void setFileHash(String fileHash) {
         this.fileHash = fileHash;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public Long getSizeBytes() {
+        return sizeBytes;
+    }
+
+    public void setSizeBytes(Long sizeBytes) {
+        this.sizeBytes = sizeBytes;
     }
 
     public String getCaption() {

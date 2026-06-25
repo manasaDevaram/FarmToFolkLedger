@@ -8,6 +8,9 @@ public record FarmMediaResponse(
         UUID farmId,
         String mediaType,
         String mediaUrl,
+        String fileKey,
+        String contentType,
+        Long sizeBytes,
         String caption,
         Boolean isPublic,
         LocalDateTime createdAt
@@ -19,6 +22,9 @@ public record FarmMediaResponse(
                 farmMedia.getFarmId(),
                 farmMedia.getMediaType(),
                 farmMedia.getMediaUrl(),
+                farmMedia.getFileKey(),
+                farmMedia.getContentType(),
+                farmMedia.getSizeBytes(),
                 farmMedia.getCaption(),
                 farmMedia.getIsPublic(),
                 farmMedia.getCreatedAt()

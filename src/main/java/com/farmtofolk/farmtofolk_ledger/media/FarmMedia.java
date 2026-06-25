@@ -28,6 +28,15 @@ public class FarmMedia {
     @Column(name = "media_url", nullable = false)
     private String mediaUrl;
 
+    @Column(name = "file_key")
+    private String fileKey;
+
+    @Column(name = "content_type")
+    private String contentType;
+
+    @Column(name = "size_bytes")
+    private Long sizeBytes;
+
     @Column(columnDefinition = "TEXT")
     private String caption;
 
@@ -72,6 +81,30 @@ public class FarmMedia {
 
     public void setMediaUrl(String mediaUrl) {
         this.mediaUrl = mediaUrl;
+    }
+
+    public String getFileKey() {
+        return fileKey;
+    }
+
+    public void setFileKey(String fileKey) {
+        this.fileKey = fileKey;
+    }
+
+    public String getContentType() {
+        return contentType;
+    }
+
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
+
+    public Long getSizeBytes() {
+        return sizeBytes;
+    }
+
+    public void setSizeBytes(Long sizeBytes) {
+        this.sizeBytes = sizeBytes;
     }
 
     public String getCaption() {
