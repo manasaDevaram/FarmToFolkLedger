@@ -50,6 +50,9 @@ public class Farmer {
 
     private Boolean active = true;
 
+    @Column(name = "user_id", unique = true)
+    private UUID userId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -162,6 +165,14 @@ public class Farmer {
 
     public void setActive(Boolean active) {
         this.active = active;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
     }
 
     public LocalDateTime getCreatedAt() {

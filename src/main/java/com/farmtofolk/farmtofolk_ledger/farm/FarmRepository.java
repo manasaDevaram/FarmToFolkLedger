@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface FarmRepository extends JpaRepository<Farm, UUID> {
 
     List<Farm> findByFarmerId(UUID farmerId);
+
+    long countByFarmerId(UUID farmerId);
 }

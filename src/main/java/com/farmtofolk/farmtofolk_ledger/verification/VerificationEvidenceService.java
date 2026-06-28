@@ -4,6 +4,9 @@ import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.FileHashService;
+import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
+import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -11,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Service
 @Transactional
@@ -29,17 +33,26 @@ public class VerificationEvidenceService {
     private final FarmVerificationRepository farmVerificationRepository;
     private final PublicTraceCacheService publicTraceCacheService;
     private final StorageService storageService;
+    private final FileHashService fileHashService;
+    private final CurrentUserService currentUserService;
+    private final BlockchainProofService blockchainProofService;
 
     public VerificationEvidenceService(
             VerificationEvidenceRepository verificationEvidenceRepository,
             FarmVerificationRepository farmVerificationRepository,
             PublicTraceCacheService publicTraceCacheService,
-            StorageService storageService
+            StorageService storageService,
+            FileHashService fileHashService,
+            CurrentUserService currentUserService,
+            BlockchainProofService blockchainProofService
     ) {
         this.verificationEvidenceRepository = verificationEvidenceRepository;
         this.farmVerificationRepository = farmVerificationRepository;
         this.publicTraceCacheService = publicTraceCacheService;
         this.storageService = storageService;
+        this.fileHashService = fileHashService;
+        this.currentUserService = currentUserService;
+        this.blockchainProofService = blockchainProofService;
     }
 
     public VerificationEvidenceResponse createVerificationEvidence(
@@ -71,6 +84,7 @@ public class VerificationEvidenceService {
         FarmVerification farmVerification = findFarmVerification(verificationId);
 
         // Store the file in S3 and keep only metadata in PostgreSQL.
+        String fileHash = fileHashService.sha256Hex(file);
         StoredFileResponse storedFile = storageService.upload(
                 file,
                 "verification-evidence/" + verificationId,
@@ -82,13 +96,16 @@ public class VerificationEvidenceService {
         verificationEvidence.setFileType(storedFile.contentType());
         verificationEvidence.setFileUrl(storedFile.fileUrl());
         verificationEvidence.setFileKey(storedFile.fileKey());
-        verificationEvidence.setFileHash(null);
+        verificationEvidence.setFileHash(fileHash);
         verificationEvidence.setContentType(storedFile.contentType());
         verificationEvidence.setSizeBytes(storedFile.sizeBytes());
         verificationEvidence.setCaption(caption);
         verificationEvidence.setIsPublic(isPublic);
+        verificationEvidence.setCapturedAt(LocalDateTime.now());
+        verificationEvidence.setUploadedByUserId(currentUserService.getCurrentUserIdOptional().orElse(null));
 
         VerificationEvidence savedVerificationEvidence = verificationEvidenceRepository.save(verificationEvidence);
+        blockchainProofService.createPendingEvidenceProof(savedVerificationEvidence.getId(), fileHash);
         // Clear QR page stable data so uploaded evidence appears in public trace.
         publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
         return VerificationEvidenceResponse.from(savedVerificationEvidence);
@@ -133,10 +150,13 @@ public class VerificationEvidenceService {
         // Keep request-to-entity field mapping in one place.
         verificationEvidence.setFileType(request.fileType());
         verificationEvidence.setFileUrl(request.fileUrl());
-        verificationEvidence.setFileHash(request.fileHash());
+        // URL-only evidence has no server-observed bytes, so it cannot claim a trusted file hash.
+        verificationEvidence.setFileHash(null);
         verificationEvidence.setCaption(request.caption());
         verificationEvidence.setIsPublic(request.isPublic());
-        verificationEvidence.setCapturedAt(request.capturedAt());
-        verificationEvidence.setUploadedByUserId(request.uploadedByUserId());
+        verificationEvidence.setCapturedAt(
+                request.capturedAt() == null ? LocalDateTime.now() : request.capturedAt()
+        );
+        verificationEvidence.setUploadedByUserId(currentUserService.getCurrentUserIdOptional().orElse(null));
     }
 }

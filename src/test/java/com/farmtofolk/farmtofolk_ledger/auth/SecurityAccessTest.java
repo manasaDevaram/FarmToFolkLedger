@@ -77,4 +77,19 @@ class SecurityAccessTest {
                         .content("{\"quantitySold\":1,\"salePricePerUnit\":30}"))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void farmerCannotReadAdminPaymentReports() throws Exception {
+        User farmer = new User();
+        farmer.setName("Farmer");
+        farmer.setPhone("9876543212");
+        farmer.setPasswordHash(passwordEncoder.encode("password123"));
+        farmer.setRole(UserRole.FARMER);
+        farmer.setActive(true);
+        farmer = userRepository.save(farmer);
+
+        mockMvc.perform(get("/api/admin/payments/summary")
+                        .header("Authorization", "Bearer " + jwtService.generateToken(farmer)))
+                .andExpect(status().isForbidden());
+    }
 }
