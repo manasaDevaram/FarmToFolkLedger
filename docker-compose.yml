@@ -55,6 +55,13 @@ services:
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-farmtofolk-ledger-dev}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-dummy-access-key}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-dummy-secret-key}
+      JWT_SECRET: ${JWT_SECRET:-change-this-development-secret-to-at-least-32-bytes}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-480}
+      BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-false}
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-FarmToFolk Admin}
+      BOOTSTRAP_ADMIN_PHONE: ${BOOTSTRAP_ADMIN_PHONE:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
     ports:
       - "8080:8080"
     networks:

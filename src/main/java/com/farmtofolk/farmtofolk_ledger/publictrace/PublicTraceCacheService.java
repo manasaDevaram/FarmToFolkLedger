@@ -10,15 +10,17 @@ import com.farmtofolk.farmtofolk_ledger.farm.FarmResponse;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerResponse;
-import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaRepository;
+import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerification;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationResponse;
-import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceRepository;
+import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -26,118 +28,124 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.UUID;
-
 @Service
 @Transactional(readOnly = true)
 public class PublicTraceCacheService {
 
-    private final QrCodeRepository qrCodeRepository;
-    private final BatchRepository batchRepository;
-    private final FarmerRepository farmerRepository;
-    private final FarmRepository farmRepository;
-    private final FarmVerificationRepository farmVerificationRepository;
-    private final VerificationEvidenceRepository verificationEvidenceRepository;
-    private final FarmMediaRepository farmMediaRepository;
-    private final CacheManager cacheManager;
+  private final QrCodeRepository qrCodeRepository;
+  private final BatchRepository batchRepository;
+  private final FarmerRepository farmerRepository;
+  private final FarmRepository farmRepository;
+  private final FarmVerificationRepository farmVerificationRepository;
+  private final VerificationEvidenceRepository verificationEvidenceRepository;
+  private final FarmMediaRepository farmMediaRepository;
+  private final CacheManager cacheManager;
 
-    public PublicTraceCacheService(
-            QrCodeRepository qrCodeRepository,
-            BatchRepository batchRepository,
-            FarmerRepository farmerRepository,
-            FarmRepository farmRepository,
-            FarmVerificationRepository farmVerificationRepository,
-            VerificationEvidenceRepository verificationEvidenceRepository,
-            FarmMediaRepository farmMediaRepository,
-            CacheManager cacheManager
-    ) {
-        this.qrCodeRepository = qrCodeRepository;
-        this.batchRepository = batchRepository;
-        this.farmerRepository = farmerRepository;
-        this.farmRepository = farmRepository;
-        this.farmVerificationRepository = farmVerificationRepository;
-        this.verificationEvidenceRepository = verificationEvidenceRepository;
-        this.farmMediaRepository = farmMediaRepository;
-        this.cacheManager = cacheManager;
-    }
+  public PublicTraceCacheService(
+      QrCodeRepository qrCodeRepository,
+      BatchRepository batchRepository,
+      FarmerRepository farmerRepository,
+      FarmRepository farmRepository,
+      FarmVerificationRepository farmVerificationRepository,
+      VerificationEvidenceRepository verificationEvidenceRepository,
+      FarmMediaRepository farmMediaRepository,
+      CacheManager cacheManager) {
+    this.qrCodeRepository = qrCodeRepository;
+    this.batchRepository = batchRepository;
+    this.farmerRepository = farmerRepository;
+    this.farmRepository = farmRepository;
+    this.farmVerificationRepository = farmVerificationRepository;
+    this.verificationEvidenceRepository = verificationEvidenceRepository;
+    this.farmMediaRepository = farmMediaRepository;
+    this.cacheManager = cacheManager;
+  }
 
-    @Cacheable(value = "publicTraceStable", key = "#publicToken")
-    public CachedPublicTraceStableData getStableData(String publicToken) {
-        // Resolve the QR token so stable data can be loaded from the batch.
-        QrCode qrCode = qrCodeRepository.findByPublicTokenAndIsActiveTrue(publicToken)
-                .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
+  @Cacheable(value = "publicTraceStable", key = "#publicToken")
+  public CachedPublicTraceStableData getStableData(String publicToken) {
+    // Resolve the QR token so stable data can be loaded from the batch.
+    QrCode qrCode =
+        qrCodeRepository
+            .findByPublicTokenAndIsActiveTrue(publicToken)
+            .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
 
-        // Load the required stable trace objects.
-        Batch batch = batchRepository.findById(qrCode.getBatchId())
-                .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
-        Farmer farmer = farmerRepository.findById(batch.getFarmerId())
-                .orElseThrow(() -> new ResourceNotFoundException("Farmer not found"));
-        Farm farm = farmRepository.findById(batch.getFarmId())
-                .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
+    // Load the required stable trace objects.
+    Batch batch =
+        batchRepository
+            .findById(qrCode.getBatchId())
+            .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+    Farmer farmer =
+        farmerRepository
+            .findById(batch.getFarmerId())
+            .orElseThrow(() -> new ResourceNotFoundException("Farmer not found"));
+    Farm farm =
+        farmRepository
+            .findById(batch.getFarmId())
+            .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
 
-        // Load optional verification and evidence data when available.
-        FarmVerification latestVerification = farmVerificationRepository
-                .findFirstByFarmIdOrderByVerificationDateDesc(farm.getId())
-                .orElse(null);
-        List<VerificationEvidenceResponse> verificationEvidence = latestVerification == null
-                ? List.of()
-                : verificationEvidenceRepository
-                        .findByVerificationIdOrderByCreatedAtAsc(latestVerification.getId())
-                        .stream()
-                        .filter(evidence -> Boolean.TRUE.equals(evidence.getIsPublic()))
-                        .map(VerificationEvidenceResponse::from)
-                        .toList();
-
-        // Load farm media as stable public trace content.
-        List<FarmMediaResponse> farmMedia = farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farm.getId())
+    // Load optional verification and evidence data when available.
+    FarmVerification latestVerification =
+        farmVerificationRepository
+            .findFirstByFarmIdOrderByVerificationDateDesc(farm.getId())
+            .orElse(null);
+    List<VerificationEvidenceResponse> verificationEvidence =
+        latestVerification == null
+            ? List.of()
+            : verificationEvidenceRepository
+                .findByVerificationIdOrderByCreatedAtAsc(latestVerification.getId())
                 .stream()
-                .filter(media -> Boolean.TRUE.equals(media.getIsPublic()))
-                .map(FarmMediaResponse::from)
+                .filter(evidence -> Boolean.TRUE.equals(evidence.getIsPublic()))
+                .map(VerificationEvidenceResponse::from)
                 .toList();
 
-        return new CachedPublicTraceStableData(
-                BatchResponse.from(batch),
-                FarmerResponse.from(farmer),
-                FarmResponse.from(farm),
-                latestVerification == null ? null : FarmVerificationResponse.from(latestVerification),
-                verificationEvidence,
-                farmMedia
-        );
-    }
+    // Load farm media as stable public trace content.
+    List<FarmMediaResponse> farmMedia =
+        farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farm.getId()).stream()
+            .filter(media -> Boolean.TRUE.equals(media.getIsPublic()))
+            .map(FarmMediaResponse::from)
+            .toList();
 
-    @CacheEvict(value = "publicTraceStable", key = "#publicToken")
-    public void evictStableData(String publicToken) {
-        // Explicit hook for future write flows that need to invalidate public trace stable data.
-    }
+    return new CachedPublicTraceStableData(
+        BatchResponse.from(batch),
+        FarmerResponse.from(farmer),
+        FarmResponse.from(farm),
+        latestVerification == null ? null : FarmVerificationResponse.from(latestVerification),
+        verificationEvidence,
+        farmMedia);
+  }
 
-    public void evictStableDataForBatch(UUID batchId) {
-        // Evict the public trace cache connected to this batch's active QR token.
-        qrCodeRepository.findFirstByBatchIdAndIsActiveTrue(batchId)
-                .map(QrCode::getPublicToken)
-                .ifPresent(this::evictStableDataSafely);
-    }
+  @CacheEvict(value = "publicTraceStable", key = "#publicToken")
+  public void evictStableData(String publicToken) {
+    // Explicit hook for future write flows that need to invalidate public trace stable data.
+  }
 
-    public void evictStableDataForFarmer(UUID farmerId) {
-        // Evict every public trace cache for batches owned by this farmer.
-        batchRepository.findByFarmerId(farmerId)
-                .forEach(batch -> evictStableDataForBatch(batch.getId()));
-    }
+  public void evictStableDataForBatch(UUID batchId) {
+    // Evict the public trace cache connected to this batch's active QR token.
+    qrCodeRepository
+        .findFirstByBatchIdAndIsActiveTrue(batchId)
+        .map(QrCode::getPublicToken)
+        .ifPresent(this::evictStableDataSafely);
+  }
 
-    public void evictStableDataForFarm(UUID farmId) {
-        // Evict every public trace cache for batches produced by this farm.
-        batchRepository.findByFarmId(farmId)
-                .forEach(batch -> evictStableDataForBatch(batch.getId()));
-    }
+  public void evictStableDataForFarmer(UUID farmerId) {
+    // Evict every public trace cache for batches owned by this farmer.
+    batchRepository
+        .findByFarmerId(farmerId)
+        .forEach(batch -> evictStableDataForBatch(batch.getId()));
+  }
 
-    private void evictStableDataSafely(String publicToken) {
-        try {
-            Cache cache = cacheManager.getCache("publicTraceStable");
-            if (cache != null) {
-                cache.evict(publicToken);
-            }
-        } catch (RuntimeException ignored) {
-            // Redis/cache eviction failures should not block the database write.
-        }
+  public void evictStableDataForFarm(UUID farmId) {
+    // Evict every public trace cache for batches produced by this farm.
+    batchRepository.findByFarmId(farmId).forEach(batch -> evictStableDataForBatch(batch.getId()));
+  }
+
+  private void evictStableDataSafely(String publicToken) {
+    try {
+      Cache cache = cacheManager.getCache("publicTraceStable");
+      if (cache != null) {
+        cache.evict(publicToken);
+      }
+    } catch (RuntimeException ignored) {
+      // Redis/cache eviction failures should not block the database write.
     }
+  }
 }

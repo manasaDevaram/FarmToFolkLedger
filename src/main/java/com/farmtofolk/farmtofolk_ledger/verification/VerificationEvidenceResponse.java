@@ -4,36 +4,34 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record VerificationEvidenceResponse(
-        UUID id,
-        UUID verificationId,
-        String fileType,
-        String fileUrl,
-        String fileKey,
-        String fileHash,
-        String contentType,
-        Long sizeBytes,
-        String caption,
-        Boolean isPublic,
-        LocalDateTime capturedAt,
-        UUID uploadedByUserId,
-        LocalDateTime createdAt
-) {
+    UUID id,
+    UUID verificationId,
+    String fileType,
+    String fileUrl,
+    String fileKey,
+    String fileHash,
+    String contentType,
+    Long sizeBytes,
+    String caption,
+    Boolean isPublic,
+    LocalDateTime capturedAt,
+    UUID uploadedByUserId,
+    LocalDateTime createdAt) {
 
-    public static VerificationEvidenceResponse from(VerificationEvidence verificationEvidence) {
-        return new VerificationEvidenceResponse(
-                verificationEvidence.getId(),
-                verificationEvidence.getVerificationId(),
-                verificationEvidence.getFileType(),
-                verificationEvidence.getFileUrl(),
-                verificationEvidence.getFileKey(),
-                verificationEvidence.getFileHash(),
-                verificationEvidence.getContentType(),
-                verificationEvidence.getSizeBytes(),
-                verificationEvidence.getCaption(),
-                verificationEvidence.getIsPublic(),
-                verificationEvidence.getCapturedAt(),
-                verificationEvidence.getUploadedByUserId(),
-                verificationEvidence.getCreatedAt()
-        );
-    }
+  public static VerificationEvidenceResponse from(VerificationEvidence verificationEvidence) {
+    return new VerificationEvidenceResponse(
+        verificationEvidence.getId(),
+        verificationEvidence.getVerificationId(),
+        verificationEvidence.getFileType(),
+        verificationEvidence.getFileUrl(),
+        verificationEvidence.getFileKey(),
+        verificationEvidence.getFileHash(),
+        verificationEvidence.getContentType(),
+        verificationEvidence.getSizeBytes(),
+        verificationEvidence.getCaption(),
+        verificationEvidence.getIsPublic(),
+        verificationEvidence.getCapturedAt(),
+        verificationEvidence.getUploadedByUserId(),
+        verificationEvidence.getCreatedAt());
+  }
 }

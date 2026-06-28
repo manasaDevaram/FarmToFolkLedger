@@ -1,13 +1,12 @@
 package com.farmtofolk.farmtofolk_ledger.analytics;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ScanEventRepository extends JpaRepository<ScanEvent, UUID> {
 
-    long countByQrCodeId(UUID qrCodeId);
+  long countByQrCodeId(UUID qrCodeId);
 
-    List<ScanEvent> findByQrCodeIdOrderByScannedAtDesc(UUID qrCodeId);
+  List<ScanEvent> findByQrCodeIdOrderByScannedAtDesc(UUID qrCodeId);
 }

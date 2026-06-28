@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:farmtofolk;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  cache:
+    type: simple
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+app:
+  security:
+    jwt-secret: test-secret-must-be-at-least-thirty-two-bytes-long
+    jwt-expiration-minutes: 60
+  bootstrap:
+    admin:
+      enabled: false
+
+storage:
+  s3:
+    region: ap-south-1
+    bucket: test-bucket
+    access-key: test-access-key
+    secret-key: test-secret-key
+    presigned-url-expiry-minutes: 10

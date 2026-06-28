@@ -7,14 +7,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class PublicTraceController {
 
-    private final PublicTraceService publicTraceService;
+  private final PublicTraceService publicTraceService;
 
-    public PublicTraceController(PublicTraceService publicTraceService) {
-        this.publicTraceService = publicTraceService;
-    }
+  public PublicTraceController(PublicTraceService publicTraceService) {
+    this.publicTraceService = publicTraceService;
+  }
 
-    @GetMapping("/api/public/trace/{publicToken}")
-    public PublicTraceResponse getPublicTrace(@PathVariable String publicToken) {
-        return publicTraceService.getPublicTrace(publicToken);
-    }
+  @GetMapping("/api/public/trace/{publicToken}")
+  public PublicTraceResponse getPublicTrace(@PathVariable String publicToken) {
+    return publicTraceService.getPublicTrace(publicToken);
+  }
 }

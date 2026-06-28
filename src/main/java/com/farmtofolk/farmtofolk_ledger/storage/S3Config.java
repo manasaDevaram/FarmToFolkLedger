@@ -12,16 +12,15 @@ import software.amazon.awssdk.services.s3.S3Client;
 @EnableConfigurationProperties(StorageProperties.class)
 public class S3Config {
 
-    @Bean
-    public S3Client s3Client(StorageProperties storageProperties) {
-        AwsBasicCredentials credentials = AwsBasicCredentials.create(
-                storageProperties.getAccessKey(),
-                storageProperties.getSecretKey()
-        );
+  @Bean
+  public S3Client s3Client(StorageProperties storageProperties) {
+    AwsBasicCredentials credentials =
+        AwsBasicCredentials.create(
+            storageProperties.getAccessKey(), storageProperties.getSecretKey());
 
-        return S3Client.builder()
-                .region(Region.of(storageProperties.getRegion()))
-                .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                .build();
-    }
+    return S3Client.builder()
+        .region(Region.of(storageProperties.getRegion()))
+        .credentialsProvider(StaticCredentialsProvider.create(credentials))
+        .build();
+  }
 }
