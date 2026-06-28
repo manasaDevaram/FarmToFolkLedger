@@ -8,12 +8,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    @Bean
-    public OpenAPI farmToFolkOpenApi() {
-        return new OpenAPI()
-                .info(new Info()
-                        .title("FarmToFolk Ledger API")
-                        .version("v1")
-                        .description("Backend APIs for admin, verifier, and public traceability workflows."));
-    }
+  @Bean
+  public OpenAPI farmToFolkOpenApi() {
+    return new OpenAPI()
+        .info(
+            new Info()
+                .title("FarmToFolk Ledger API")
+                .version("v1")
+                .description(
+                    "Backend APIs for admin, verifier, and public traceability workflows."));
+  }
 }

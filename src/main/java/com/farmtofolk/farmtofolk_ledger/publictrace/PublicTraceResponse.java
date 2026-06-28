@@ -9,18 +9,15 @@ import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
-
 import java.util.List;
 
 public record PublicTraceResponse(
-        QrCodeResponse qrCode,
-        BatchResponse batch,
-        FarmerResponse farmer,
-        FarmResponse farm,
-        FarmVerificationResponse latestVerification,
-        List<VerificationEvidenceResponse> verificationEvidence,
-        List<FarmMediaResponse> farmMedia,
-        PriceBreakdownResponse priceBreakdown,
-        List<TraceEventResponse> traceEvents
-) {
-}
+    QrCodeResponse qrCode,
+    BatchResponse batch,
+    FarmerResponse farmer,
+    FarmResponse farm,
+    FarmVerificationResponse latestVerification,
+    List<VerificationEvidenceResponse> verificationEvidence,
+    List<FarmMediaResponse> farmMedia,
+    PriceBreakdownResponse priceBreakdown,
+    List<TraceEventResponse> traceEvents) {}

@@ -8,8 +8,7 @@ import org.springframework.cache.annotation.EnableCaching;
 @EnableCaching
 public class FarmToFolkLedgerApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(FarmToFolkLedgerApplication.class, args);
-	}
-
+  public static void main(String[] args) {
+    SpringApplication.run(FarmToFolkLedgerApplication.class, args);
+  }
 }
