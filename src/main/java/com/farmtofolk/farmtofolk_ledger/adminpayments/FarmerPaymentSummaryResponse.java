@@ -5,13 +5,11 @@ import java.util.List;
 import java.util.UUID;
 
 public record FarmerPaymentSummaryResponse(
-        UUID farmerId,
-        String farmerName,
-        String farmerPhone,
-        BigDecimal totalPayable,
-        BigDecimal totalPaid,
-        BigDecimal totalPending,
-        long pendingBatchCount,
-        List<FarmerPaymentBatchResponse> batches
-) {
-}
+    UUID farmerId,
+    String farmerName,
+    String farmerPhone,
+    BigDecimal totalPayable,
+    BigDecimal totalPaid,
+    BigDecimal totalPending,
+    long pendingBatchCount,
+    List<FarmerPaymentBatchResponse> batches) {}

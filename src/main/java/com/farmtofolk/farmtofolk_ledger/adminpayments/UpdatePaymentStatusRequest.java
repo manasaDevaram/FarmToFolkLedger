@@ -1,9 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.adminpayments;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
+import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
+import jakarta.validation.constraints.NotNull;
 
-public record UpdatePaymentStatusRequest(
-        @NotBlank @Pattern(regexp = "(?i)UNPAID|PAID") String paymentStatus
-) {
-}
+public record UpdatePaymentStatusRequest(@NotNull PaymentStatus paymentStatus) {}
