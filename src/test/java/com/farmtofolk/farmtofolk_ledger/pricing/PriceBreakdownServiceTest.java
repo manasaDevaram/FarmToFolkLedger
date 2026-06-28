@@ -1,49 +1,40 @@
 package com.farmtofolk.farmtofolk_ledger.pricing;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
+
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class PriceBreakdownServiceTest {
 
-    @Mock
-    private PriceBreakdownRepository priceBreakdownRepository;
+  @Mock private PriceBreakdownRepository priceBreakdownRepository;
 
-    @Mock
-    private BatchRepository batchRepository;
+  @Mock private BatchRepository batchRepository;
 
-    @InjectMocks
-    private PriceBreakdownService priceBreakdownService;
+  @InjectMocks private PriceBreakdownService priceBreakdownService;
 
-    @Test
-    void createPriceBreakdownRejectsDuplicateForBatch() {
-        UUID batchId = UUID.randomUUID();
+  @Test
+  void createPriceBreakdownRejectsDuplicateForBatch() {
+    UUID batchId = UUID.randomUUID();
 
-        when(batchRepository.existsById(batchId)).thenReturn(true);
-        when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.of(new PriceBreakdown()));
+    when(batchRepository.existsById(batchId)).thenReturn(true);
+    when(priceBreakdownRepository.findByBatchId(batchId))
+        .thenReturn(Optional.of(new PriceBreakdown()));
 
-        CreatePriceBreakdownRequest request = new CreatePriceBreakdownRequest(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                "INR",
-                "kg"
-        );
+    CreatePriceBreakdownRequest request =
+        new CreatePriceBreakdownRequest(null, null, null, null, null, null, "INR", "kg");
 
-        assertThrows(ConflictException.class, () -> priceBreakdownService.createPriceBreakdown(batchId, request));
-    }
+    assertThrows(
+        ConflictException.class,
+        () -> priceBreakdownService.createPriceBreakdown(batchId, request));
+  }
 }
