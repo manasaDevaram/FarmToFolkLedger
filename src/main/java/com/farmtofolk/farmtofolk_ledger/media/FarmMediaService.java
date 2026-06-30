@@ -12,6 +12,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,6 +42,8 @@ public class FarmMediaService {
     this.storageService = storageService;
     this.afterCommitExecutor = afterCommitExecutor;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
+    this.transactionTemplate.setPropagationBehavior(
+        TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
 
   @Transactional
