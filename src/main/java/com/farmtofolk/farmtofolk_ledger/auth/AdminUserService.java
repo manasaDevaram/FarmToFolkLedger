@@ -54,7 +54,9 @@ public class AdminUserService {
   @Transactional(readOnly = true)
   public List<InternalUserResponse> list() {
     return userRepository.findByRoleIn(INTERNAL_ROLES).stream()
-        .sorted(Comparator.comparing(User::getName, String.CASE_INSENSITIVE_ORDER))
+        .sorted(
+            Comparator.comparing(
+                User::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
         .map(InternalUserResponse::from)
         .toList();
   }
@@ -138,6 +140,6 @@ public class AdminUserService {
   }
 
   private String normalize(String value) {
-    return value.trim();
+    return value == null ? null : value.trim();
   }
 }
