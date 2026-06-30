@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.util.List;
@@ -15,14 +16,17 @@ public class FarmVerificationService {
   private final FarmVerificationRepository farmVerificationRepository;
   private final FarmRepository farmRepository;
   private final PublicTraceCacheService publicTraceCacheService;
+  private final AfterCommitExecutor afterCommitExecutor;
 
   public FarmVerificationService(
       FarmVerificationRepository farmVerificationRepository,
       FarmRepository farmRepository,
-      PublicTraceCacheService publicTraceCacheService) {
+      PublicTraceCacheService publicTraceCacheService,
+      AfterCommitExecutor afterCommitExecutor) {
     this.farmVerificationRepository = farmVerificationRepository;
     this.farmRepository = farmRepository;
     this.publicTraceCacheService = publicTraceCacheService;
+    this.afterCommitExecutor = afterCommitExecutor;
   }
 
   public FarmVerificationResponse createFarmVerification(
@@ -38,7 +42,7 @@ public class FarmVerificationService {
     // Save the verification and return API-friendly response data.
     FarmVerification savedFarmVerification = farmVerificationRepository.save(farmVerification);
     // Clear QR page stable data because latest verification may have changed.
-    publicTraceCacheService.evictStableDataForFarm(farmId);
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarm(farmId));
     return FarmVerificationResponse.from(savedFarmVerification);
   }
 
@@ -78,7 +82,8 @@ public class FarmVerificationService {
 
     FarmVerification savedFarmVerification = farmVerificationRepository.save(farmVerification);
     // Clear QR page stable data because verification details changed.
-    publicTraceCacheService.evictStableDataForFarm(savedFarmVerification.getFarmId());
+    afterCommitExecutor.run(
+        () -> publicTraceCacheService.evictStableDataForFarm(savedFarmVerification.getFarmId()));
     return FarmVerificationResponse.from(savedFarmVerification);
   }
 

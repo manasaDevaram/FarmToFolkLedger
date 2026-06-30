@@ -2,12 +2,12 @@ package com.farmtofolk.farmtofolk_ledger.farmerdashboard;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
 import com.farmtofolk.farmtofolk_ledger.auth.User;
-import com.farmtofolk.farmtofolk_ledger.auth.UserRepository;
 import com.farmtofolk.farmtofolk_ledger.auth.UserRole;
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
@@ -16,6 +16,7 @@ import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
+import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdown;
 import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurement;
 import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementRepository;
 import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
@@ -36,7 +37,6 @@ import org.springframework.security.access.AccessDeniedException;
 class FarmerDashboardServiceTest {
 
   @Mock CurrentUserService currentUserService;
-  @Mock UserRepository userRepository;
   @Mock FarmerRepository farmerRepository;
   @Mock FarmRepository farmRepository;
   @Mock BatchRepository batchRepository;
@@ -67,10 +67,13 @@ class FarmerDashboardServiceTest {
     when(farmRepository.findAllById(org.mockito.ArgumentMatchers.<Iterable<UUID>>any()))
         .thenReturn(List.of(farm));
     when(farm.getId()).thenReturn(farmId);
-    when(traceEventRepository.findByBatchIdOrderByEventTimeAsc(batchId)).thenReturn(List.of());
-    when(procurementRepository.findByBatchId(batchId))
-        .thenReturn(Optional.of(procurement(batchId, "100", "40")));
-    when(saleTransactionRepository.findByBatchIdOrderBySoldAtAsc(batchId))
+    when(traceEventRepository.findByBatchIdInOrderByEventTimeAsc(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of());
+    when(priceBreakdownRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of());
+    when(procurementRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of(procurement(batchId, "100", "40")));
+    when(saleTransactionRepository.findByBatchIdInOrderBySoldAtAsc(org.mockito.ArgumentMatchers.any()))
         .thenReturn(List.of(sale(batchId, "25", "70"), sale(batchId, "15", "80")));
 
     FarmerDashboardBatchResponse response = service().getBatches(farmerId).getFirst();
@@ -103,10 +106,47 @@ class FarmerDashboardServiceTest {
     assertThrows(AccessDeniedException.class, () -> service().getBatchDetail(batchId));
   }
 
+  @Test
+  void summaryGroupsWorkByFarmWithoutAccountData() {
+    UUID farmerId = UUID.randomUUID();
+    UUID farmId = UUID.randomUUID();
+    UUID batchId = UUID.randomUUID();
+    User admin = mock(User.class);
+    Farmer farmer = mock(Farmer.class);
+    Farm farm = mock(Farm.class);
+    Batch batch = mock(Batch.class);
+    when(admin.getRole()).thenReturn(UserRole.ADMIN);
+    when(currentUserService.getCurrentUser()).thenReturn(admin);
+    when(farmerRepository.findById(farmerId)).thenReturn(Optional.of(farmer));
+    when(farmer.getId()).thenReturn(farmerId);
+    when(farm.getId()).thenReturn(farmId);
+    when(batch.getId()).thenReturn(batchId);
+    when(batch.getFarmId()).thenReturn(farmId);
+    when(batch.getQuantity()).thenReturn(new BigDecimal("80"));
+    when(farmRepository.findByFarmerId(farmerId)).thenReturn(List.of(farm));
+    when(batchRepository.findByFarmerId(farmerId)).thenReturn(List.of(batch));
+    when(procurementRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of(procurement(batchId, "60", "40")));
+    when(priceBreakdownRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of(price(batchId, "75")));
+    when(saleTransactionRepository.findByBatchIdInOrderBySoldAtAsc(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of(sale(batchId, "20", "70")));
+    when(traceEventRepository.findByBatchIdInOrderByEventTimeAsc(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of());
+
+    FarmerDashboardSummaryResponse response = service().getSummary(farmerId);
+
+    FarmerDashboardWorkBatchResponse workBatch = response.farms().getFirst().batches().getFirst();
+    assertEquals(new BigDecimal("80"), workBatch.quantityProduced());
+    assertEquals(new BigDecimal("20"), workBatch.quantitySold());
+    assertEquals(new BigDecimal("60"), workBatch.remainingQuantity());
+    assertEquals(new BigDecimal("75"), workBatch.consumerPrice());
+    assertNull(workBatch.currentTraceStatus());
+  }
+
   private FarmerDashboardService service() {
     return new FarmerDashboardService(
         currentUserService,
-        userRepository,
         farmerRepository,
         farmRepository,
         batchRepository,
@@ -133,5 +173,12 @@ class FarmerDashboardServiceTest {
     sale.setSalePricePerUnit(new BigDecimal(price));
     sale.calculateSaleAmount();
     return sale;
+  }
+
+  private PriceBreakdown price(UUID batchId, String consumerPrice) {
+    PriceBreakdown price = new PriceBreakdown();
+    price.setBatchId(batchId);
+    price.setConsumerPrice(new BigDecimal(consumerPrice));
+    return price;
   }
 }

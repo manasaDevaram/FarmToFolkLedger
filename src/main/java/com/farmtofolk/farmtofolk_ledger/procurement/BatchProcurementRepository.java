@@ -1,6 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.procurement;
 
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +14,8 @@ public interface BatchProcurementRepository extends JpaRepository<BatchProcureme
   Optional<BatchProcurement> findByBatchId(UUID batchId);
 
   boolean existsByBatchId(UUID batchId);
+
+  List<BatchProcurement> findByBatchIdIn(Collection<UUID> batchIds);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query(

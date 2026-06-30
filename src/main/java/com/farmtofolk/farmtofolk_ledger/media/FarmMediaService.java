@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.media;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
@@ -10,10 +11,11 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@Transactional
 public class FarmMediaService {
 
   private static final Set<String> FARM_MEDIA_CONTENT_TYPES =
@@ -23,18 +25,25 @@ public class FarmMediaService {
   private final FarmRepository farmRepository;
   private final PublicTraceCacheService publicTraceCacheService;
   private final StorageService storageService;
+  private final AfterCommitExecutor afterCommitExecutor;
+  private final TransactionTemplate transactionTemplate;
 
   public FarmMediaService(
       FarmMediaRepository farmMediaRepository,
       FarmRepository farmRepository,
       PublicTraceCacheService publicTraceCacheService,
-      StorageService storageService) {
+      StorageService storageService,
+      AfterCommitExecutor afterCommitExecutor,
+      PlatformTransactionManager transactionManager) {
     this.farmMediaRepository = farmMediaRepository;
     this.farmRepository = farmRepository;
     this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
+    this.afterCommitExecutor = afterCommitExecutor;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
+  @Transactional
   public FarmMediaResponse createFarmMedia(UUID farmId, CreateFarmMediaRequest request) {
     // Make sure the media is linked to a real farm.
     verifyFarmExists(farmId);
@@ -47,7 +56,7 @@ public class FarmMediaService {
     // Save the media and return API-friendly response data.
     FarmMedia savedFarmMedia = farmMediaRepository.save(farmMedia);
     // Clear QR page stable data because farm media changed.
-    publicTraceCacheService.evictStableDataForFarm(farmId);
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarm(farmId));
     return FarmMediaResponse.from(savedFarmMedia);
   }
 
@@ -59,22 +68,33 @@ public class FarmMediaService {
     StoredFileResponse storedFile =
         storageService.upload(file, "farm-media/" + farmId, FARM_MEDIA_CONTENT_TYPES);
 
-    FarmMedia farmMedia = new FarmMedia();
-    farmMedia.setFarmId(farmId);
-    farmMedia.setMediaType(storedFile.contentType());
-    farmMedia.setMediaUrl(storedFile.fileUrl());
-    farmMedia.setFileKey(storedFile.fileKey());
-    farmMedia.setContentType(storedFile.contentType());
-    farmMedia.setSizeBytes(storedFile.sizeBytes());
-    farmMedia.setCaption(caption);
-    farmMedia.setIsPublic(true);
+    FarmMediaResponse response;
+    try {
+      response =
+          transactionTemplate.execute(
+              status -> {
+                FarmMedia farmMedia = new FarmMedia();
+                farmMedia.setFarmId(farmId);
+                farmMedia.setMediaType(storedFile.contentType());
+                farmMedia.setMediaUrl(storedFile.fileUrl());
+                farmMedia.setFileKey(storedFile.fileKey());
+                farmMedia.setContentType(storedFile.contentType());
+                farmMedia.setSizeBytes(storedFile.sizeBytes());
+                farmMedia.setCaption(caption);
+                farmMedia.setIsPublic(true);
+                return FarmMediaResponse.from(farmMediaRepository.save(farmMedia));
+              });
+    } catch (RuntimeException exception) {
+      deleteUploadedFileSafely(storedFile.fileKey());
+      throw exception;
+    }
 
-    FarmMedia savedFarmMedia = farmMediaRepository.save(farmMedia);
-    // Clear QR page stable data so uploaded media appears in public trace.
+    // TransactionTemplate has committed before the public cache is invalidated.
     publicTraceCacheService.evictStableDataForFarm(farmId);
-    return FarmMediaResponse.from(savedFarmMedia);
+    return response;
   }
 
+  @Transactional(readOnly = true)
   public List<FarmMediaResponse> getMediaForFarm(UUID farmId) {
     // Make sure the farm exists before listing its media.
     verifyFarmExists(farmId);
@@ -85,12 +105,14 @@ public class FarmMediaService {
         .toList();
   }
 
+  @Transactional
   public void deleteFarmMedia(UUID mediaId) {
     // Load media first so missing IDs produce the expected message.
     FarmMedia farmMedia = findFarmMedia(mediaId);
     farmMediaRepository.delete(farmMedia);
     // Clear QR page stable data because farm media changed.
-    publicTraceCacheService.evictStableDataForFarm(farmMedia.getFarmId());
+    afterCommitExecutor.run(
+        () -> publicTraceCacheService.evictStableDataForFarm(farmMedia.getFarmId()));
   }
 
   private FarmMedia findFarmMedia(UUID mediaId) {
@@ -113,5 +135,13 @@ public class FarmMediaService {
     farmMedia.setMediaUrl(request.mediaUrl());
     farmMedia.setCaption(request.caption());
     farmMedia.setIsPublic(request.isPublic());
+  }
+
+  private void deleteUploadedFileSafely(String fileKey) {
+    try {
+      storageService.delete(fileKey);
+    } catch (RuntimeException ignored) {
+      // Preserve the database exception; failed cleanup can be retried operationally.
+    }
   }
 }

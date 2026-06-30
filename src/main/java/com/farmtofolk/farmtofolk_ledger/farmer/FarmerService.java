@@ -1,6 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.farmer;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
@@ -9,10 +11,11 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@Transactional
 public class FarmerService {
 
   private static final Set<String> PROFILE_PHOTO_CONTENT_TYPES =
@@ -23,16 +26,23 @@ public class FarmerService {
   private final FarmerRepository farmerRepository;
   private final PublicTraceCacheService publicTraceCacheService;
   private final StorageService storageService;
+  private final AfterCommitExecutor afterCommitExecutor;
+  private final TransactionTemplate transactionTemplate;
 
   public FarmerService(
       FarmerRepository farmerRepository,
       PublicTraceCacheService publicTraceCacheService,
-      StorageService storageService) {
+      StorageService storageService,
+      AfterCommitExecutor afterCommitExecutor,
+      PlatformTransactionManager transactionManager) {
     this.farmerRepository = farmerRepository;
     this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
+    this.afterCommitExecutor = afterCommitExecutor;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
   }
 
+  @Transactional
   public FarmerResponse createFarmer(CreateFarmerRequest request) {
     // Copy request data into a new Farmer entity.
     Farmer farmer = new Farmer();
@@ -40,6 +50,7 @@ public class FarmerService {
     if (farmer.getFarmerCode() == null || farmer.getFarmerCode().isBlank()) {
       farmer.setFarmerCode(generateFarmerCode());
     }
+    validateUniqueFields(farmer.getFarmerCode(), farmer.getPhone(), null);
 
     // Save the farmer and return API-friendly response data.
     Farmer savedFarmer = farmerRepository.save(farmer);
@@ -47,53 +58,56 @@ public class FarmerService {
   }
 
   public FarmerResponse uploadProfilePhoto(UUID farmerId, MultipartFile file) {
-    // Store the photo in S3 and save the resulting URL on the farmer profile.
-    Farmer farmer = findFarmer(farmerId);
+    findFarmer(farmerId);
     StoredFileResponse storedFile =
         storageService.upload(
             file, "farmers/" + farmerId + "/profile-photo", PROFILE_PHOTO_CONTENT_TYPES);
-    farmer.setProfilePhotoUrl(storedFile.fileUrl());
-
-    Farmer savedFarmer = farmerRepository.save(farmer);
+    FarmerResponse response =
+        saveUploadedFarmerFile(
+            farmerId, storedFile, farmer -> farmer.setProfilePhotoUrl(storedFile.fileUrl()));
     publicTraceCacheService.evictStableDataForFarmer(farmerId);
-    return FarmerResponse.from(savedFarmer);
+    return response;
   }
 
   public FarmerResponse uploadIntroVideo(UUID farmerId, MultipartFile file) {
-    // Store the intro video in S3 and save the resulting URL on the farmer profile.
-    Farmer farmer = findFarmer(farmerId);
+    findFarmer(farmerId);
     StoredFileResponse storedFile =
         storageService.upload(
             file, "farmers/" + farmerId + "/intro-video", INTRO_VIDEO_CONTENT_TYPES);
-    farmer.setIntroVideoUrl(storedFile.fileUrl());
-
-    Farmer savedFarmer = farmerRepository.save(farmer);
+    FarmerResponse response =
+        saveUploadedFarmerFile(
+            farmerId, storedFile, farmer -> farmer.setIntroVideoUrl(storedFile.fileUrl()));
     publicTraceCacheService.evictStableDataForFarmer(farmerId);
-    return FarmerResponse.from(savedFarmer);
+    return response;
   }
 
+  @Transactional(readOnly = true)
   public FarmerResponse getFarmer(UUID farmerId) {
     // Load one farmer by ID and convert it to a response.
     Farmer farmer = findFarmer(farmerId);
     return FarmerResponse.from(farmer);
   }
 
+  @Transactional(readOnly = true)
   public List<FarmerResponse> getAllFarmers() {
     // Fetch all farmers and convert each one to a response.
     return farmerRepository.findAll().stream().map(FarmerResponse::from).toList();
   }
 
+  @Transactional
   public FarmerResponse updateFarmer(UUID farmerId, CreateFarmerRequest request) {
     // Load the existing farmer, update its fields, then save it.
     Farmer farmer = findFarmer(farmerId);
     applyRequest(farmer, request);
+    validateUniqueFields(farmer.getFarmerCode(), farmer.getPhone(), farmerId);
 
     Farmer savedFarmer = farmerRepository.save(farmer);
     // Clear QR page stable data because farmer details changed.
-    publicTraceCacheService.evictStableDataForFarmer(farmerId);
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarmer(farmerId));
     return FarmerResponse.from(savedFarmer);
   }
 
+  @Transactional
   public FarmerResponse updateFarmerStatus(UUID farmerId, UpdateFarmerStatusRequest request) {
     // Load the farmer and update only the active status.
     Farmer farmer = findFarmer(farmerId);
@@ -101,7 +115,7 @@ public class FarmerService {
 
     Farmer savedFarmer = farmerRepository.save(farmer);
     // Clear QR page stable data because farmer status changed.
-    publicTraceCacheService.evictStableDataForFarmer(farmerId);
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarmer(farmerId));
     return FarmerResponse.from(savedFarmer);
   }
 
@@ -115,10 +129,10 @@ public class FarmerService {
   private void applyRequest(Farmer farmer, CreateFarmerRequest request) {
     // Keep request-to-entity field mapping in one place.
     if (request.farmerCode() != null && !request.farmerCode().isBlank()) {
-      farmer.setFarmerCode(request.farmerCode());
+      farmer.setFarmerCode(request.farmerCode().trim());
     }
     farmer.setName(request.name());
-    farmer.setPhone(request.phone());
+    farmer.setPhone(request.phone() == null ? null : request.phone().trim());
     farmer.setVillage(request.village());
     farmer.setDistrict(request.district());
     farmer.setState(request.state());
@@ -143,5 +157,43 @@ public class FarmerService {
 
   private String formatFarmerCode(int year, long sequence) {
     return "FTF-FR-" + year + "-" + String.format("%06d", sequence);
+  }
+
+  private void validateUniqueFields(String farmerCode, String phone, UUID farmerId) {
+    boolean duplicateCode =
+        farmerId == null
+            ? farmerRepository.existsByFarmerCode(farmerCode)
+            : farmerRepository.existsByFarmerCodeAndIdNot(farmerCode, farmerId);
+    if (duplicateCode) throw new ConflictException("Farmer code already exists");
+
+    if (phone == null || phone.isBlank()) return;
+    boolean duplicatePhone =
+        farmerId == null
+            ? farmerRepository.existsByPhone(phone)
+            : farmerRepository.existsByPhoneAndIdNot(phone, farmerId);
+    if (duplicatePhone) throw new ConflictException("Farmer phone already exists");
+  }
+
+  private FarmerResponse saveUploadedFarmerFile(
+      UUID farmerId, StoredFileResponse storedFile, java.util.function.Consumer<Farmer> update) {
+    try {
+      return transactionTemplate.execute(
+          status -> {
+            Farmer farmer = findFarmer(farmerId);
+            update.accept(farmer);
+            return FarmerResponse.from(farmerRepository.save(farmer));
+          });
+    } catch (RuntimeException exception) {
+      deleteUploadedFileSafely(storedFile.fileKey());
+      throw exception;
+    }
+  }
+
+  private void deleteUploadedFileSafely(String fileKey) {
+    try {
+      storageService.delete(fileKey);
+    } catch (RuntimeException ignored) {
+      // Cleanup failure must not hide the database failure that triggered it.
+    }
   }
 }

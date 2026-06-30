@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -32,6 +33,13 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiErrorResponse> handleConflict(
       ConflictException exception, HttpServletRequest request) {
     return buildResponse(HttpStatus.CONFLICT, exception.getMessage(), request);
+  }
+
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(
+      DataIntegrityViolationException exception, HttpServletRequest request) {
+    return buildResponse(
+        HttpStatus.CONFLICT, "A unique or relational constraint was violated", request);
   }
 
   @ExceptionHandler(UnauthorizedException.class)

@@ -42,7 +42,8 @@ public class BatchProcurementService {
 
   @PreAuthorize("hasRole('ADMIN')")
   public BatchProcurementResponse create(UUID batchId, CreateBatchProcurementRequest request) {
-    findBatch(batchId);
+    Batch batch = findBatch(batchId);
+    validateQuantityDoesNotExceedProduction(batch, request.quantityTaken());
     if (procurementRepository.existsByBatchId(batchId)) {
       throw new ConflictException("Procurement already exists for this batch");
     }
@@ -65,7 +66,8 @@ public class BatchProcurementService {
 
   @PreAuthorize("hasRole('ADMIN')")
   public BatchProcurementResponse update(UUID batchId, CreateBatchProcurementRequest request) {
-    findBatch(batchId);
+    Batch batch = findBatch(batchId);
+    validateQuantityDoesNotExceedProduction(batch, request.quantityTaken());
     BatchProcurement procurement =
         procurementRepository
             .findByBatchIdForUpdate(batchId)
@@ -107,5 +109,11 @@ public class BatchProcurementService {
             .map(farmer -> farmer.getId().equals(batch.getFarmerId()))
             .orElse(false);
     if (!ownsBatch) throw new AccessDeniedException("You cannot access another farmer's batch");
+  }
+
+  private void validateQuantityDoesNotExceedProduction(Batch batch, BigDecimal quantityTaken) {
+    if (batch.getQuantity() != null && quantityTaken.compareTo(batch.getQuantity()) > 0) {
+      throw new BadRequestException("Quantity taken cannot exceed batch production quantity");
+    }
   }
 }

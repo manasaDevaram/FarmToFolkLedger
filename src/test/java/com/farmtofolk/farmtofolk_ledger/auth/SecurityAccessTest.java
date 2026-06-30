@@ -116,6 +116,9 @@ class SecurityAccessTest {
         .perform(get("/api/admin/payments/summary").header("Authorization", authorization))
         .andExpect(status().isForbidden());
     mockMvc
+        .perform(get("/api/admin/users").header("Authorization", authorization))
+        .andExpect(status().isForbidden());
+    mockMvc
         .perform(
             post("/api/batches/{batchId}/qr-code", batchId).header("Authorization", authorization))
         .andExpect(status().isForbidden());
@@ -133,6 +136,25 @@ class SecurityAccessTest {
         .perform(
             post("/api/batches/{batchId}/sale-transactions", batchId)
                 .header("Authorization", authorization))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void farmerCannotUseAdminUserManagement() throws Exception {
+    User farmer = new User();
+    farmer.setName("Farmer");
+    farmer.setPhone("9876543214");
+    farmer.setPasswordHash(passwordEncoder.encode("password123"));
+    farmer.setRole(UserRole.FARMER);
+    farmer.setActive(true);
+    farmer = userRepository.save(farmer);
+
+    mockMvc
+        .perform(
+            post("/api/admin/users")
+                .header("Authorization", "Bearer " + jwtService.generateToken(farmer))
+                .contentType("application/json")
+                .content("{}"))
         .andExpect(status().isForbidden());
   }
 }

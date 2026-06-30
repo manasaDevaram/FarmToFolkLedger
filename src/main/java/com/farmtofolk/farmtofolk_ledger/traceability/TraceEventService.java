@@ -3,6 +3,8 @@ package com.farmtofolk.farmtofolk_ledger.traceability;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -18,11 +20,18 @@ public class TraceEventService {
 
   private final TraceEventRepository traceEventRepository;
   private final BatchRepository batchRepository;
+  private final PublicTraceCacheService publicTraceCacheService;
+  private final AfterCommitExecutor afterCommitExecutor;
 
   public TraceEventService(
-      TraceEventRepository traceEventRepository, BatchRepository batchRepository) {
+      TraceEventRepository traceEventRepository,
+      BatchRepository batchRepository,
+      PublicTraceCacheService publicTraceCacheService,
+      AfterCommitExecutor afterCommitExecutor) {
     this.traceEventRepository = traceEventRepository;
     this.batchRepository = batchRepository;
+    this.publicTraceCacheService = publicTraceCacheService;
+    this.afterCommitExecutor = afterCommitExecutor;
   }
 
   public TraceEventResponse createTraceEvent(UUID batchId, CreateTraceEventRequest request) {
@@ -38,6 +47,7 @@ public class TraceEventService {
 
     // Save the trace event and return API-friendly response data.
     TraceEvent savedTraceEvent = traceEventRepository.save(traceEvent);
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForBatch(batchId));
     return TraceEventResponse.from(savedTraceEvent);
   }
 

@@ -1,7 +1,9 @@
 package com.farmtofolk.farmtofolk_ledger.batch;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
+import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
@@ -24,16 +26,19 @@ public class BatchService {
   private final FarmRepository farmRepository;
   private final FarmerRepository farmerRepository;
   private final PublicTraceCacheService publicTraceCacheService;
+  private final AfterCommitExecutor afterCommitExecutor;
 
   public BatchService(
       BatchRepository batchRepository,
       FarmRepository farmRepository,
       FarmerRepository farmerRepository,
-      PublicTraceCacheService publicTraceCacheService) {
+      PublicTraceCacheService publicTraceCacheService,
+      AfterCommitExecutor afterCommitExecutor) {
     this.batchRepository = batchRepository;
     this.farmRepository = farmRepository;
     this.farmerRepository = farmerRepository;
     this.publicTraceCacheService = publicTraceCacheService;
+    this.afterCommitExecutor = afterCommitExecutor;
   }
 
   public BatchResponse createBatch(CreateBatchRequest request) {
@@ -41,6 +46,7 @@ public class BatchService {
     verifyFarmerExists(request.farmerId());
     // Make sure the farm belongs to that farmer.
     verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
+    validateUniqueBatchCode(request.batchCode(), null);
 
     // Copy request data into a new Batch entity.
     Batch batch = new Batch();
@@ -118,6 +124,7 @@ public class BatchService {
     verifyFarmerExists(request.farmerId());
     // Make sure the updated farm belongs to that farmer.
     verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
+    validateUniqueBatchCode(request.batchCode(), batchId);
 
     // Load the existing batch, update its fields, then save it.
     Batch batch = findBatch(batchId);
@@ -125,7 +132,7 @@ public class BatchService {
 
     Batch savedBatch = batchRepository.save(batch);
     // Clear QR page stable data because batch details changed.
-    publicTraceCacheService.evictStableDataForBatch(batchId);
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForBatch(batchId));
     return BatchResponse.from(savedBatch);
   }
 
@@ -165,7 +172,7 @@ public class BatchService {
 
   private void applyRequest(Batch batch, CreateBatchRequest request) {
     // Keep request-to-entity field mapping in one place.
-    batch.setBatchCode(request.batchCode());
+    batch.setBatchCode(request.batchCode().trim());
     batch.setFarmId(request.farmId());
     batch.setFarmerId(request.farmerId());
     batch.setCropName(request.cropName());
@@ -192,5 +199,14 @@ public class BatchService {
   private String farmName(UUID farmId, Map<UUID, Farm> farmsById) {
     Farm farm = farmsById.get(farmId);
     return farm == null ? null : farm.getFarmName();
+  }
+
+  private void validateUniqueBatchCode(String batchCode, UUID batchId) {
+    String normalizedBatchCode = batchCode.trim();
+    boolean duplicate =
+        batchId == null
+            ? batchRepository.existsByBatchCode(normalizedBatchCode)
+            : batchRepository.existsByBatchCodeAndIdNot(normalizedBatchCode, batchId);
+    if (duplicate) throw new ConflictException("Batch code already exists");
   }
 }
