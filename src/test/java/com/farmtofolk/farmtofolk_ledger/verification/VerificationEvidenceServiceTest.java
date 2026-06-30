@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
 import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.*;
 import java.util.Optional;
@@ -18,6 +19,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
 
 @ExtendWith(MockitoExtension.class)
 class VerificationEvidenceServiceTest {
@@ -29,6 +32,8 @@ class VerificationEvidenceServiceTest {
   @Mock FileHashService fileHashService;
   @Mock CurrentUserService currentUserService;
   @Mock BlockchainProofService blockchainProofService;
+  @Mock AfterCommitExecutor afterCommitExecutor;
+  @Mock PlatformTransactionManager transactionManager;
 
   @Test
   void uploadAttributesActorHashesBytesAndCreatesPendingProof() {
@@ -39,6 +44,7 @@ class VerificationEvidenceServiceTest {
     MockMultipartFile file =
         new MockMultipartFile("file", "photo.jpg", "image/jpeg", "photo".getBytes());
     when(verificationRepository.findById(verificationId)).thenReturn(Optional.of(verification));
+    when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
     when(fileHashService.sha256Hex(file)).thenReturn("abc123");
     when(storageService.upload(eq(file), anyString(), any(Set.class)))
         .thenReturn(
@@ -60,7 +66,9 @@ class VerificationEvidenceServiceTest {
             storageService,
             fileHashService,
             currentUserService,
-            blockchainProofService);
+            blockchainProofService,
+            afterCommitExecutor,
+            transactionManager);
 
     service.uploadVerificationEvidence(verificationId, file, "Field photo", true);
 
@@ -90,7 +98,9 @@ class VerificationEvidenceServiceTest {
             storageService,
             fileHashService,
             currentUserService,
-            blockchainProofService);
+            blockchainProofService,
+            afterCommitExecutor,
+            transactionManager);
 
     service.createVerificationEvidence(
         verificationId,
@@ -103,6 +113,42 @@ class VerificationEvidenceServiceTest {
     assertNull(captor.getValue().getFileHash());
     assertEquals(userId, captor.getValue().getUploadedByUserId());
     assertNotNull(captor.getValue().getCapturedAt());
+    verifyNoInteractions(blockchainProofService);
+  }
+
+  @Test
+  void uploadDeletesS3ObjectWhenDatabaseSaveFails() {
+    UUID verificationId = UUID.randomUUID();
+    MockMultipartFile file =
+        new MockMultipartFile("file", "photo.jpg", "image/jpeg", "photo".getBytes());
+    when(verificationRepository.findById(verificationId))
+        .thenReturn(Optional.of(new FarmVerification()));
+    when(currentUserService.getCurrentUserId()).thenReturn(UUID.randomUUID());
+    when(fileHashService.sha256Hex(file)).thenReturn("abc123");
+    when(storageService.upload(eq(file), anyString(), any(Set.class)))
+        .thenReturn(
+            new StoredFileResponse(
+                "uploaded-key", "https://example.com/photo.jpg", "photo.jpg", "image/jpeg", 5L));
+    when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+    when(evidenceRepository.save(any(VerificationEvidence.class)))
+        .thenThrow(new IllegalStateException("database failed"));
+    VerificationEvidenceService service =
+        new VerificationEvidenceService(
+            evidenceRepository,
+            verificationRepository,
+            cacheService,
+            storageService,
+            fileHashService,
+            currentUserService,
+            blockchainProofService,
+            afterCommitExecutor,
+            transactionManager);
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> service.uploadVerificationEvidence(verificationId, file, null, true));
+
+    verify(storageService).delete("uploaded-key");
     verifyNoInteractions(blockchainProofService);
   }
 }

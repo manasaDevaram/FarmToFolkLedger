@@ -3,6 +3,8 @@ package com.farmtofolk.farmtofolk_ledger.pricing;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,11 +15,18 @@ public class PriceBreakdownService {
 
   private final PriceBreakdownRepository priceBreakdownRepository;
   private final BatchRepository batchRepository;
+  private final PublicTraceCacheService publicTraceCacheService;
+  private final AfterCommitExecutor afterCommitExecutor;
 
   public PriceBreakdownService(
-      PriceBreakdownRepository priceBreakdownRepository, BatchRepository batchRepository) {
+      PriceBreakdownRepository priceBreakdownRepository,
+      BatchRepository batchRepository,
+      PublicTraceCacheService publicTraceCacheService,
+      AfterCommitExecutor afterCommitExecutor) {
     this.priceBreakdownRepository = priceBreakdownRepository;
     this.batchRepository = batchRepository;
+    this.publicTraceCacheService = publicTraceCacheService;
+    this.afterCommitExecutor = afterCommitExecutor;
   }
 
   public PriceBreakdownResponse createPriceBreakdown(
@@ -34,6 +43,7 @@ public class PriceBreakdownService {
 
     // Save the price breakdown and return API-friendly response data.
     PriceBreakdown savedPriceBreakdown = priceBreakdownRepository.save(priceBreakdown);
+    evictPublicTraceAfterCommit(batchId);
     return PriceBreakdownResponse.from(savedPriceBreakdown);
   }
 
@@ -61,6 +71,7 @@ public class PriceBreakdownService {
     applyRequest(priceBreakdown, request);
 
     PriceBreakdown savedPriceBreakdown = priceBreakdownRepository.save(priceBreakdown);
+    evictPublicTraceAfterCommit(batchId);
     return PriceBreakdownResponse.from(savedPriceBreakdown);
   }
 
@@ -95,5 +106,9 @@ public class PriceBreakdownService {
     priceBreakdown.setPlatformCost(request.platformCost());
     priceBreakdown.setCurrency(request.currency());
     priceBreakdown.setPriceUnit(request.priceUnit());
+  }
+
+  private void evictPublicTraceAfterCommit(UUID batchId) {
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForBatch(batchId));
   }
 }

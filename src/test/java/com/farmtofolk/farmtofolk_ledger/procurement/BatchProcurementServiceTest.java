@@ -97,6 +97,27 @@ class BatchProcurementServiceTest {
                         new BigDecimal("10"), BigDecimal.ONE, PaymentStatus.PAID, "INR", null)));
   }
 
+  @Test
+  void createCannotProcureMoreThanBatchProduced() {
+    UUID batchId = UUID.randomUUID();
+    Batch batch = new Batch();
+    batch.setQuantity(new BigDecimal("50"));
+    when(batchRepository.findById(batchId)).thenReturn(Optional.of(batch));
+
+    assertThrows(
+        BadRequestException.class,
+        () ->
+            service()
+                .create(
+                    batchId,
+                    new CreateBatchProcurementRequest(
+                        new BigDecimal("51"),
+                        BigDecimal.ONE,
+                        PaymentStatus.UNPAID,
+                        "INR",
+                        null)));
+  }
+
   private BatchProcurementService service() {
     return new BatchProcurementService(
         procurementRepository,

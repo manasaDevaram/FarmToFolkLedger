@@ -20,7 +20,7 @@ public class PriceBreakdown {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(name = "batch_id", nullable = false)
+  @Column(name = "batch_id", nullable = false, unique = true)
   private UUID batchId;
 
   @Column(name = "consumer_price")

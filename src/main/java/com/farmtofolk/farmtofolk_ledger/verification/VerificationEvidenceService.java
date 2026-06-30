@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.verification;
 import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
 import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.FileHashService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
@@ -13,10 +14,12 @@ import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
-@Transactional
 public class VerificationEvidenceService {
 
   private static final Set<String> VERIFICATION_EVIDENCE_CONTENT_TYPES =
@@ -35,6 +38,8 @@ public class VerificationEvidenceService {
   private final FileHashService fileHashService;
   private final CurrentUserService currentUserService;
   private final BlockchainProofService blockchainProofService;
+  private final AfterCommitExecutor afterCommitExecutor;
+  private final TransactionTemplate transactionTemplate;
 
   public VerificationEvidenceService(
       VerificationEvidenceRepository verificationEvidenceRepository,
@@ -43,7 +48,9 @@ public class VerificationEvidenceService {
       StorageService storageService,
       FileHashService fileHashService,
       CurrentUserService currentUserService,
-      BlockchainProofService blockchainProofService) {
+      BlockchainProofService blockchainProofService,
+      AfterCommitExecutor afterCommitExecutor,
+      PlatformTransactionManager transactionManager) {
     this.verificationEvidenceRepository = verificationEvidenceRepository;
     this.farmVerificationRepository = farmVerificationRepository;
     this.publicTraceCacheService = publicTraceCacheService;
@@ -51,8 +58,13 @@ public class VerificationEvidenceService {
     this.fileHashService = fileHashService;
     this.currentUserService = currentUserService;
     this.blockchainProofService = blockchainProofService;
+    this.afterCommitExecutor = afterCommitExecutor;
+    this.transactionTemplate = new TransactionTemplate(transactionManager);
+    this.transactionTemplate.setPropagationBehavior(
+        TransactionDefinition.PROPAGATION_REQUIRES_NEW);
   }
 
+  @Transactional
   public VerificationEvidenceResponse createVerificationEvidence(
       UUID verificationId, CreateVerificationEvidenceRequest request) {
     // Make sure the evidence is linked to a real farm verification.
@@ -67,7 +79,8 @@ public class VerificationEvidenceService {
     VerificationEvidence savedVerificationEvidence =
         verificationEvidenceRepository.save(verificationEvidence);
     // Clear QR page stable data because verification evidence changed.
-    publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
+    afterCommitExecutor.run(
+        () -> publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId()));
     return VerificationEvidenceResponse.from(savedVerificationEvidence);
   }
 
@@ -75,6 +88,7 @@ public class VerificationEvidenceService {
       UUID verificationId, MultipartFile file, String caption, Boolean isPublic) {
     // Make sure the uploaded evidence is linked to a real farm verification.
     FarmVerification farmVerification = findFarmVerification(verificationId);
+    UUID uploadedByUserId = currentUserService.getCurrentUserId();
 
     // Store the file in S3 and keep only metadata in PostgreSQL.
     String fileHash = fileHashService.sha256Hex(file);
@@ -82,27 +96,39 @@ public class VerificationEvidenceService {
         storageService.upload(
             file, "verification-evidence/" + verificationId, VERIFICATION_EVIDENCE_CONTENT_TYPES);
 
-    VerificationEvidence verificationEvidence = new VerificationEvidence();
-    verificationEvidence.setVerificationId(verificationId);
-    verificationEvidence.setFileType(storedFile.contentType());
-    verificationEvidence.setFileUrl(storedFile.fileUrl());
-    verificationEvidence.setFileKey(storedFile.fileKey());
-    verificationEvidence.setFileHash(fileHash);
-    verificationEvidence.setContentType(storedFile.contentType());
-    verificationEvidence.setSizeBytes(storedFile.sizeBytes());
-    verificationEvidence.setCaption(caption);
-    verificationEvidence.setIsPublic(isPublic);
-    verificationEvidence.setCapturedAt(LocalDateTime.now());
-    verificationEvidence.setUploadedByUserId(currentUserService.getCurrentUserId());
+    VerificationEvidenceResponse response;
+    try {
+      response =
+          transactionTemplate.execute(
+              status -> {
+                VerificationEvidence evidence = new VerificationEvidence();
+                evidence.setVerificationId(verificationId);
+                evidence.setFileType(storedFile.contentType());
+                evidence.setFileUrl(storedFile.fileUrl());
+                evidence.setFileKey(storedFile.fileKey());
+                evidence.setFileHash(fileHash);
+                evidence.setContentType(storedFile.contentType());
+                evidence.setSizeBytes(storedFile.sizeBytes());
+                evidence.setCaption(caption);
+                evidence.setIsPublic(isPublic);
+                evidence.setCapturedAt(LocalDateTime.now());
+                evidence.setUploadedByUserId(uploadedByUserId);
 
-    VerificationEvidence savedVerificationEvidence =
-        verificationEvidenceRepository.save(verificationEvidence);
-    blockchainProofService.createPendingEvidenceProof(savedVerificationEvidence.getId(), fileHash);
-    // Clear QR page stable data so uploaded evidence appears in public trace.
+                VerificationEvidence saved = verificationEvidenceRepository.save(evidence);
+                blockchainProofService.createPendingEvidenceProof(saved.getId(), fileHash);
+                return VerificationEvidenceResponse.from(saved);
+              });
+    } catch (RuntimeException exception) {
+      deleteUploadedFileSafely(storedFile.fileKey());
+      throw exception;
+    }
+
+    // The evidence and pending proof have committed before consumers see the new cache value.
     publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
-    return VerificationEvidenceResponse.from(savedVerificationEvidence);
+    return response;
   }
 
+  @Transactional(readOnly = true)
   public List<VerificationEvidenceResponse> getEvidenceForVerification(UUID verificationId) {
     // Make sure the verification exists before listing its evidence.
     findFarmVerification(verificationId);
@@ -115,6 +141,7 @@ public class VerificationEvidenceService {
         .toList();
   }
 
+  @Transactional
   public void deleteEvidence(UUID evidenceId) {
     // Load evidence first so missing IDs produce the expected message.
     VerificationEvidence verificationEvidence = findVerificationEvidence(evidenceId);
@@ -122,7 +149,8 @@ public class VerificationEvidenceService {
         findFarmVerification(verificationEvidence.getVerificationId());
     verificationEvidenceRepository.delete(verificationEvidence);
     // Clear QR page stable data because verification evidence changed.
-    publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
+    afterCommitExecutor.run(
+        () -> publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId()));
   }
 
   private VerificationEvidence findVerificationEvidence(UUID evidenceId) {
@@ -151,5 +179,13 @@ public class VerificationEvidenceService {
     verificationEvidence.setCapturedAt(
         request.capturedAt() == null ? LocalDateTime.now() : request.capturedAt());
     verificationEvidence.setUploadedByUserId(currentUserService.getCurrentUserId());
+  }
+
+  private void deleteUploadedFileSafely(String fileKey) {
+    try {
+      storageService.delete(fileKey);
+    } catch (RuntimeException ignored) {
+      // Keep the original transaction failure as the API error.
+    }
   }
 }

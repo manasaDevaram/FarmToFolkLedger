@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.farm;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
@@ -20,14 +21,17 @@ public class FarmService {
   private final FarmRepository farmRepository;
   private final FarmerRepository farmerRepository;
   private final PublicTraceCacheService publicTraceCacheService;
+  private final AfterCommitExecutor afterCommitExecutor;
 
   public FarmService(
       FarmRepository farmRepository,
       FarmerRepository farmerRepository,
-      PublicTraceCacheService publicTraceCacheService) {
+      PublicTraceCacheService publicTraceCacheService,
+      AfterCommitExecutor afterCommitExecutor) {
     this.farmRepository = farmRepository;
     this.farmerRepository = farmerRepository;
     this.publicTraceCacheService = publicTraceCacheService;
+    this.afterCommitExecutor = afterCommitExecutor;
   }
 
   public FarmResponse createFarm(CreateFarmRequest request) {
@@ -94,7 +98,7 @@ public class FarmService {
 
     Farm savedFarm = farmRepository.save(farm);
     // Clear QR page stable data because farm details changed.
-    publicTraceCacheService.evictStableDataForFarm(farmId);
+    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarm(farmId));
     return FarmResponse.from(savedFarm);
   }
 

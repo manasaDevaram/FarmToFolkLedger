@@ -5,6 +5,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
+import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
+import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.Mockito.doAnswer;
 
 @ExtendWith(MockitoExtension.class)
 class BatchServiceTest {
@@ -29,6 +32,8 @@ class BatchServiceTest {
   @Mock private FarmerRepository farmerRepository;
 
   @Mock private PublicTraceCacheService publicTraceCacheService;
+
+  @Mock private AfterCommitExecutor afterCommitExecutor;
 
   @InjectMocks private BatchService batchService;
 
@@ -62,6 +67,13 @@ class BatchServiceTest {
 
   @Test
   void updateBatchEvictsPublicTraceCache() {
+    doAnswer(
+            invocation -> {
+              invocation.<Runnable>getArgument(0).run();
+              return null;
+            })
+        .when(afterCommitExecutor)
+        .run(org.mockito.ArgumentMatchers.any());
     UUID farmerId = UUID.randomUUID();
     UUID farmId = UUID.randomUUID();
     UUID batchId = UUID.randomUUID();
@@ -91,5 +103,32 @@ class BatchServiceTest {
     batchService.updateBatch(batchId, request);
 
     verify(publicTraceCacheService).evictStableDataForBatch(batchId);
+  }
+
+  @Test
+  void createBatchRejectsDuplicateBatchCodeBeforeSaving() {
+    UUID farmerId = UUID.randomUUID();
+    UUID farmId = UUID.randomUUID();
+    Farm farm = new Farm();
+    farm.setFarmerId(farmerId);
+    when(farmerRepository.existsById(farmerId)).thenReturn(true);
+    when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
+    when(batchRepository.existsByBatchCode("BATCH-001")).thenReturn(true);
+
+    CreateBatchRequest request =
+        new CreateBatchRequest(
+            "BATCH-001",
+            farmId,
+            farmerId,
+            "Tomato",
+            null,
+            BigDecimal.TEN,
+            "kg",
+            LocalDate.now(),
+            null,
+            null,
+            "READY");
+
+    assertThrows(ConflictException.class, () -> batchService.createBatch(request));
   }
 }
