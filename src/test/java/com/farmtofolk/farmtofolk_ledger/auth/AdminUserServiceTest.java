@@ -25,12 +25,13 @@ class AdminUserServiceTest {
 
   @Mock private UserRepository userRepository;
   @Mock private PasswordEncoder passwordEncoder;
+  @Mock private CurrentUserService currentUserService;
 
   private AdminUserService service;
 
   @BeforeEach
   void setUp() {
-    service = new AdminUserService(userRepository, passwordEncoder);
+    service = new AdminUserService(userRepository, passwordEncoder, currentUserService);
   }
 
   @Test
@@ -93,6 +94,27 @@ class AdminUserServiceTest {
     verify(userRepository).findByRoleIn(roles.capture());
     assertEquals(2, roles.getValue().size());
     assertFalse(roles.getValue().contains(UserRole.FARMER));
+  }
+
+  @Test
+  void rejectsChangingOwnRoleOrStatus() {
+    java.util.UUID currentUserId = java.util.UUID.randomUUID();
+    when(currentUserService.getCurrentUserId()).thenReturn(currentUserId);
+
+    BadRequestException roleException =
+        assertThrows(
+            BadRequestException.class,
+            () ->
+                service.updateRole(
+                    currentUserId, new UpdateInternalUserRoleRequest(UserRole.FIELD_OFFICER)));
+    BadRequestException statusException =
+        assertThrows(
+            BadRequestException.class,
+            () -> service.updateStatus(currentUserId, new UpdateUserStatusRequest(false)));
+
+    assertEquals("You cannot change your own role/status", roleException.getMessage());
+    assertEquals("You cannot change your own role/status", statusException.getMessage());
+    verify(userRepository, never()).findById(any());
   }
 
   private User user(String name, UserRole role) {

@@ -92,6 +92,7 @@ public class FarmerDashboardService {
                     new FarmerDashboardFarmResponse(
                         FarmResponse.from(farm),
                         batchesByFarm.getOrDefault(farm.getId(), List.of()).stream()
+                            .sorted(dashboardBatchComparator(metricsByBatch))
                             .map(batch -> toWorkBatchResponse(batch, metricsByBatch.get(batch.getId())))
                             .toList()))
             .toList();
@@ -253,6 +254,17 @@ public class FarmerDashboardService {
                 .filter(Objects::nonNull)
                 .max(Comparator.naturalOrder())
                 .orElse(null)));
+  }
+
+  private Comparator<Batch> dashboardBatchComparator(Map<UUID, BatchMetrics> metricsByBatch) {
+    return Comparator.<Batch, LocalDateTime>comparing(
+            batch -> lastUpdated(batch, metricsByBatch.get(batch.getId())),
+            Comparator.nullsLast(Comparator.reverseOrder()))
+        .thenComparing(
+            Batch::getHarvestDate, Comparator.nullsLast(Comparator.reverseOrder()))
+        .thenComparing(
+            Batch::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
+        .thenComparing(Batch::getId, Comparator.nullsLast(Comparator.naturalOrder()));
   }
 
   private LocalDateTime latest(Collection<LocalDateTime> values) {

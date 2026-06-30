@@ -24,10 +24,15 @@ public class AdminUserService {
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
+  private final CurrentUserService currentUserService;
 
-  public AdminUserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+  public AdminUserService(
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder,
+      CurrentUserService currentUserService) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
+    this.currentUserService = currentUserService;
   }
 
   public InternalUserResponse create(CreateInternalUserRequest request) {
@@ -60,6 +65,7 @@ public class AdminUserService {
   }
 
   public InternalUserResponse update(UUID userId, UpdateInternalUserRequest request) {
+    if (request.active() != null) validateNotCurrentUser(userId);
     User user = findInternalUser(userId);
     String email = request.email() == null ? user.getEmail() : normalizeEmail(request.email());
     String phone = request.phone() == null ? user.getPhone() : normalize(request.phone());
@@ -76,6 +82,7 @@ public class AdminUserService {
   }
 
   public InternalUserResponse updateRole(UUID userId, UpdateInternalUserRoleRequest request) {
+    validateNotCurrentUser(userId);
     validateInternalRole(request.role());
     User user = findInternalUser(userId);
     user.setRole(request.role());
@@ -83,6 +90,7 @@ public class AdminUserService {
   }
 
   public InternalUserResponse updateStatus(UUID userId, UpdateUserStatusRequest request) {
+    validateNotCurrentUser(userId);
     User user = findInternalUser(userId);
     user.setActive(request.active());
     return InternalUserResponse.from(userRepository.save(user));
@@ -102,6 +110,12 @@ public class AdminUserService {
   private void validateInternalRole(UserRole role) {
     if (!INTERNAL_ROLES.contains(role)) {
       throw new BadRequestException("Invalid role for internal user creation");
+    }
+  }
+
+  private void validateNotCurrentUser(UUID userId) {
+    if (currentUserService.getCurrentUserId().equals(userId)) {
+      throw new BadRequestException("You cannot change your own role/status");
     }
   }
 
