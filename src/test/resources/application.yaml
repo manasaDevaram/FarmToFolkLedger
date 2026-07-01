@@ -29,4 +29,6 @@ storage:
     bucket: test-bucket
     access-key: test-access-key
     secret-key: test-secret-key
-    presigned-url-expiry-minutes: 10
+
+media:
+  presigned-url-expiry-minutes: 15

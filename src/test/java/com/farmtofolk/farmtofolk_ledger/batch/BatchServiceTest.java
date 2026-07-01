@@ -58,8 +58,6 @@ class BatchServiceTest {
             BigDecimal.TEN,
             "kg",
             LocalDate.now(),
-            null,
-            null,
             "READY");
 
     assertThrows(BadRequestException.class, () -> batchService.createBatch(request));
@@ -96,8 +94,6 @@ class BatchServiceTest {
             BigDecimal.TEN,
             "kg",
             LocalDate.now(),
-            null,
-            null,
             "READY");
 
     batchService.updateBatch(batchId, request);
@@ -125,8 +121,6 @@ class BatchServiceTest {
             BigDecimal.TEN,
             "kg",
             LocalDate.now(),
-            null,
-            null,
             "READY");
 
     assertThrows(ConflictException.class, () -> batchService.createBatch(request));

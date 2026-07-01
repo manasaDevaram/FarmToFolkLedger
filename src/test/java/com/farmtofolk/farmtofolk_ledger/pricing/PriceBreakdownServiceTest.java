@@ -1,11 +1,13 @@
 package com.farmtofolk.farmtofolk_ledger.pricing;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import java.util.Optional;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,10 +33,22 @@ class PriceBreakdownServiceTest {
         .thenReturn(Optional.of(new PriceBreakdown()));
 
     CreatePriceBreakdownRequest request =
-        new CreatePriceBreakdownRequest(null, null, null, null, null, null, "INR", "kg");
+        new CreatePriceBreakdownRequest(null, null, null, "INR", "kg");
 
     assertThrows(
         ConflictException.class,
         () -> priceBreakdownService.createPriceBreakdown(batchId, request));
+  }
+
+  @Test
+  void responseCalculatesMarginFromThreePriceFields() {
+    PriceBreakdown priceBreakdown = new PriceBreakdown();
+    priceBreakdown.setConsumerPrice(new BigDecimal("100"));
+    priceBreakdown.setFarmerPrice(new BigDecimal("60"));
+    priceBreakdown.setOperationalCost(new BigDecimal("20"));
+
+    PriceBreakdownResponse response = PriceBreakdownResponse.from(priceBreakdown);
+
+    assertEquals(new BigDecimal("20"), response.margin());
   }
 }

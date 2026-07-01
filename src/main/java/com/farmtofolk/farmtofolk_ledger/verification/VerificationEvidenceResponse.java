@@ -2,6 +2,7 @@ package com.farmtofolk.farmtofolk_ledger.verification;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 
 public record VerificationEvidenceResponse(
     UUID id,
@@ -33,5 +34,17 @@ public record VerificationEvidenceResponse(
         verificationEvidence.getCapturedAt(),
         verificationEvidence.getUploadedByUserId(),
         verificationEvidence.getCreatedAt());
+  }
+
+  public static VerificationEvidenceResponse from(
+      VerificationEvidence verificationEvidence, StorageService storageService) {
+    return from(verificationEvidence).withPresignedUrl(storageService);
+  }
+
+  public VerificationEvidenceResponse withPresignedUrl(StorageService storageService) {
+    String storedValue = fileKey != null ? fileKey : fileUrl;
+    return new VerificationEvidenceResponse(
+        id, verificationId, fileType, storageService.generatePresignedUrl(storedValue), fileKey,
+        fileHash, contentType, sizeBytes, caption, isPublic, capturedAt, uploadedByUserId, createdAt);
   }
 }

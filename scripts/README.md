@@ -68,5 +68,5 @@ http://localhost:8080/api/public/trace/{publicToken}
 - `GET /api/farms/{farmId}/batches` returns batches for duplicate checks.
 - `GET /api/batches/{batchId}/trace-events` returns existing trace events.
 - `POST /api/batches/{batchId}/qr-code` returns the active QR code if one already exists.
-- Price data maps demo `retailMargin` into existing `organizationCost`, because the current DTO does not have a separate `retailMargin` field.
+- Demo logistics, platform fee, and retail margin are aggregated into `operationalCost`.
 - The requested `PACKED` trace event requires the backend trace API to allow `PACKED`.

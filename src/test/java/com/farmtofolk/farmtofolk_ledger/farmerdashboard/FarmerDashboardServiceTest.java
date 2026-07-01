@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +45,7 @@ class FarmerDashboardServiceTest {
   @Mock PriceBreakdownRepository priceBreakdownRepository;
   @Mock BatchProcurementRepository procurementRepository;
   @Mock BatchSaleTransactionRepository saleTransactionRepository;
+  @Mock StorageService storageService;
 
   @Test
   void batchSummaryAggregatesProcurementAndAllSaleTransactions() {
@@ -153,7 +155,8 @@ class FarmerDashboardServiceTest {
         traceEventRepository,
         priceBreakdownRepository,
         procurementRepository,
-        saleTransactionRepository);
+        saleTransactionRepository,
+        storageService);
   }
 
   private BatchProcurement procurement(UUID batchId, String quantity, String price) {

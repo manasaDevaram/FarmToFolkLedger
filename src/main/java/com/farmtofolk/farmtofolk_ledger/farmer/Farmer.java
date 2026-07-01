@@ -41,8 +41,14 @@ public class Farmer {
   @Column(name = "profile_photo_url")
   private String profilePhotoUrl;
 
+  @Column(name = "profile_photo_key")
+  private String profilePhotoKey;
+
   @Column(name = "intro_video_url")
   private String introVideoUrl;
+
+  @Column(name = "intro_video_key")
+  private String introVideoKey;
 
   @Column(name = "joined_date")
   private LocalDate joinedDate;
@@ -142,6 +148,10 @@ public class Farmer {
     this.profilePhotoUrl = profilePhotoUrl;
   }
 
+  public String getProfilePhotoKey() { return profilePhotoKey; }
+
+  public void setProfilePhotoKey(String profilePhotoKey) { this.profilePhotoKey = profilePhotoKey; }
+
   public String getIntroVideoUrl() {
     return introVideoUrl;
   }
@@ -149,6 +159,10 @@ public class Farmer {
   public void setIntroVideoUrl(String introVideoUrl) {
     this.introVideoUrl = introVideoUrl;
   }
+
+  public String getIntroVideoKey() { return introVideoKey; }
+
+  public void setIntroVideoKey(String introVideoKey) { this.introVideoKey = introVideoKey; }
 
   public LocalDate getJoinedDate() {
     return joinedDate;

@@ -17,8 +17,6 @@ public record BatchListResponse(
     BigDecimal quantity,
     String unit,
     LocalDate harvestDate,
-    LocalDate packedDate,
-    LocalDate bestBeforeDate,
     String status,
     LocalDateTime createdAt,
     LocalDateTime updatedAt) {
@@ -36,8 +34,6 @@ public record BatchListResponse(
         batch.getQuantity(),
         batch.getUnit(),
         batch.getHarvestDate(),
-        batch.getPackedDate(),
-        batch.getBestBeforeDate(),
         batch.getStatus(),
         batch.getCreatedAt(),
         batch.getUpdatedAt());

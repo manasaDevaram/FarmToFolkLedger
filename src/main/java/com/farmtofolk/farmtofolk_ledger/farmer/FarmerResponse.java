@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.farmer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 
 public record FarmerResponse(
     UUID id,
@@ -30,11 +31,22 @@ public record FarmerResponse(
         farmer.getDistrict(),
         farmer.getState(),
         farmer.getBio(),
-        farmer.getProfilePhotoUrl(),
-        farmer.getIntroVideoUrl(),
+        farmer.getProfilePhotoKey() != null ? farmer.getProfilePhotoKey() : farmer.getProfilePhotoUrl(),
+        farmer.getIntroVideoKey() != null ? farmer.getIntroVideoKey() : farmer.getIntroVideoUrl(),
         farmer.getJoinedDate(),
         farmer.getActive(),
         farmer.getCreatedAt(),
         farmer.getUpdatedAt());
+  }
+
+  public static FarmerResponse from(Farmer farmer, StorageService storageService) {
+    return from(farmer).withPresignedUrls(storageService);
+  }
+
+  public FarmerResponse withPresignedUrls(StorageService storageService) {
+    return new FarmerResponse(
+        id, farmerCode, name, phone, village, district, state, bio,
+        storageService.generatePresignedUrl(profilePhotoUrl),
+        storageService.generatePresignedUrl(introVideoUrl), joinedDate, active, createdAt, updatedAt);
   }
 }

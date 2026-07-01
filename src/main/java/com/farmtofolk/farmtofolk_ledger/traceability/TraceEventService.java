@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.traceability;
 
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
+import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
@@ -16,7 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class TraceEventService {
 
   private static final Set<String> ALLOWED_EVENT_TYPES =
-      Set.of("HARVESTED", "PACKED", "RECEIVED_AT_MARKET", "SOLD");
+      Set.of(
+          "HARVESTED",
+          "CLEANED",
+          "GRADED",
+          "PACKED",
+          "VERIFIED",
+          "SHIPPED",
+          "RECEIVED_AT_MARKET",
+          "SOLD");
 
   private final TraceEventRepository traceEventRepository;
   private final BatchRepository batchRepository;
@@ -47,6 +56,7 @@ public class TraceEventService {
 
     // Save the trace event and return API-friendly response data.
     TraceEvent savedTraceEvent = traceEventRepository.save(traceEvent);
+    updateCurrentBatchStatus(batchId, savedTraceEvent);
     afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForBatch(batchId));
     return TraceEventResponse.from(savedTraceEvent);
   }
@@ -83,5 +93,23 @@ public class TraceEventService {
     traceEvent.setDescription(request.description());
     traceEvent.setActorUserId(request.actorUserId());
     traceEvent.setMetadataJson(request.metadataJson());
+  }
+
+  private void updateCurrentBatchStatus(UUID batchId, TraceEvent newEvent) {
+    boolean hasLaterEvent =
+        traceEventRepository.findByBatchIdOrderByEventTimeAsc(batchId).stream()
+            .filter(event -> !event.equals(newEvent))
+            .anyMatch(event ->
+                event.getEventTime() != null
+                    && newEvent.getEventTime() != null
+                    && event.getEventTime().isAfter(newEvent.getEventTime()));
+    if (hasLaterEvent) return;
+
+    Batch batch =
+        batchRepository
+            .findById(batchId)
+            .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+    batch.setStatus(newEvent.getEventType());
+    batchRepository.save(batch);
   }
 }

@@ -180,8 +180,6 @@ public class BatchService {
     batch.setQuantity(request.quantity());
     batch.setUnit(request.unit());
     batch.setHarvestDate(request.harvestDate());
-    batch.setPackedDate(request.packedDate());
-    batch.setBestBeforeDate(request.bestBeforeDate());
     batch.setStatus(request.status());
   }
 
