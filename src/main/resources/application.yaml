@@ -43,6 +43,7 @@ media:
   presigned-url-expiry-minutes: ${MEDIA_PRESIGNED_URL_EXPIRY_MINUTES:15}
 
 app:
+  public-trace-base-url: ${PUBLIC_TRACE_BASE_URL:http://localhost:8080/api/public/trace}
   security:
     jwt-secret: ${JWT_SECRET:change-this-development-secret-to-at-least-32-bytes}
     jwt-expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}

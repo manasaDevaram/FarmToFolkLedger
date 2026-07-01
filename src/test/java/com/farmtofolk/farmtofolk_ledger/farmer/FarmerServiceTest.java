@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.farmtofolk.farmtofolk_ledger.auth.User;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.auth.UserRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
@@ -29,6 +30,7 @@ class FarmerServiceTest {
   @Mock PublicTraceCacheService cacheService;
   @Mock StorageService storageService;
   @Mock AfterCommitExecutor afterCommitExecutor;
+  @Mock DomainEventPublisher domainEventPublisher;
   @Mock PlatformTransactionManager transactionManager;
   @Mock UserRepository userRepository;
   @Mock PasswordEncoder passwordEncoder;
@@ -42,6 +44,7 @@ class FarmerServiceTest {
             cacheService,
             storageService,
             afterCommitExecutor,
+            domainEventPublisher,
             transactionManager,
             userRepository,
             passwordEncoder,
@@ -79,6 +82,7 @@ class FarmerServiceTest {
             cacheService,
             storageService,
             afterCommitExecutor,
+            domainEventPublisher,
             transactionManager,
             userRepository,
             passwordEncoder,

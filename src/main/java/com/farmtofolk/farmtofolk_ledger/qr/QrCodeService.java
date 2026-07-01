@@ -2,6 +2,8 @@ package com.farmtofolk.farmtofolk_ledger.qr;
 
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.QrCodeCreatedEvent;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -15,10 +17,15 @@ public class QrCodeService {
 
   private final QrCodeRepository qrCodeRepository;
   private final BatchRepository batchRepository;
+  private final DomainEventPublisher domainEventPublisher;
 
-  public QrCodeService(QrCodeRepository qrCodeRepository, BatchRepository batchRepository) {
+  public QrCodeService(
+      QrCodeRepository qrCodeRepository,
+      BatchRepository batchRepository,
+      DomainEventPublisher domainEventPublisher) {
     this.qrCodeRepository = qrCodeRepository;
     this.batchRepository = batchRepository;
+    this.domainEventPublisher = domainEventPublisher;
   }
 
   public QrCodeResponse createQrCode(UUID batchId) {
@@ -55,6 +62,9 @@ public class QrCodeService {
     qrCode.setGeneratedAt(LocalDateTime.now());
 
     QrCode savedQrCode = qrCodeRepository.save(qrCode);
+    domainEventPublisher.publishAfterCommit(
+        new QrCodeCreatedEvent(
+            savedQrCode.getId(), savedQrCode.getBatchId(), savedQrCode.getPublicToken()));
     return QrCodeResponse.from(savedQrCode);
   }
 

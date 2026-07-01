@@ -6,6 +6,8 @@ import com.farmtofolk.farmtofolk_ledger.auth.UserRole;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
@@ -33,6 +35,7 @@ public class FarmerService {
   private final PublicTraceCacheService publicTraceCacheService;
   private final StorageService storageService;
   private final AfterCommitExecutor afterCommitExecutor;
+  private final DomainEventPublisher domainEventPublisher;
   private final TransactionTemplate transactionTemplate;
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
@@ -43,6 +46,7 @@ public class FarmerService {
       PublicTraceCacheService publicTraceCacheService,
       StorageService storageService,
       AfterCommitExecutor afterCommitExecutor,
+      DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager,
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
@@ -52,6 +56,7 @@ public class FarmerService {
     this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
     this.afterCommitExecutor = afterCommitExecutor;
+    this.domainEventPublisher = domainEventPublisher;
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.defaultUserPassword = defaultUserPassword;
@@ -98,6 +103,8 @@ public class FarmerService {
               farmer.setProfilePhotoKey(storedFile.objectKey());
               farmer.setProfilePhotoUrl(null);
             });
+    domainEventPublisher.publishAfterCommit(
+        new ImageUploadedEvent("FARMER_PROFILE", farmerId, storedFile.objectKey()));
     publicTraceCacheService.evictStableDataForFarmer(farmerId);
     return response;
   }

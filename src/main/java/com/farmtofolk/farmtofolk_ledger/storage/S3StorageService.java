@@ -80,6 +80,28 @@ public class S3StorageService implements StorageService {
   }
 
   @Override
+  public StoredFileResponse upload(
+      byte[] content, String originalFilename, String contentType, String folderPath) {
+    if (content == null || content.length == 0) {
+      throw new BadRequestException("File must not be empty");
+    }
+    if (storageProperties.getBucket() == null || storageProperties.getBucket().isBlank()) {
+      throw new StorageException("S3 bucket is not configured");
+    }
+    String fileKey = buildFileKey(folderPath, originalFilename);
+    PutObjectRequest request = PutObjectRequest.builder()
+        .bucket(storageProperties.getBucket()).key(fileKey).contentType(contentType)
+        .contentLength((long) content.length).build();
+    try {
+      s3Client.putObject(request, RequestBody.fromBytes(content));
+    } catch (SdkException exception) {
+      throw new StorageException("S3 upload failed");
+    }
+    return new StoredFileResponse(
+        fileKey, null, originalFilename, contentType, (long) content.length);
+  }
+
+  @Override
   public String generatePresignedUrl(String objectKey) {
     if (objectKey == null || objectKey.isBlank()) {
       return null;

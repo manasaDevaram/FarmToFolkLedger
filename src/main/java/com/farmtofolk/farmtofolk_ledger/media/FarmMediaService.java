@@ -2,6 +2,8 @@ package com.farmtofolk.farmtofolk_ledger.media;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
@@ -28,6 +30,7 @@ public class FarmMediaService {
   private final StorageService storageService;
   private final AfterCommitExecutor afterCommitExecutor;
   private final TransactionTemplate transactionTemplate;
+  private final DomainEventPublisher domainEventPublisher;
 
   public FarmMediaService(
       FarmMediaRepository farmMediaRepository,
@@ -35,12 +38,14 @@ public class FarmMediaService {
       PublicTraceCacheService publicTraceCacheService,
       StorageService storageService,
       AfterCommitExecutor afterCommitExecutor,
+      DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager) {
     this.farmMediaRepository = farmMediaRepository;
     this.farmRepository = farmRepository;
     this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
     this.afterCommitExecutor = afterCommitExecutor;
+    this.domainEventPublisher = domainEventPublisher;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.transactionTemplate.setPropagationBehavior(
         TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -93,6 +98,10 @@ public class FarmMediaService {
     }
 
     // TransactionTemplate has committed before the public cache is invalidated.
+    if (isImage(storedFile.contentType())) {
+      domainEventPublisher.publishAfterCommit(
+          new ImageUploadedEvent("FARM_MEDIA", response.id(), storedFile.objectKey()));
+    }
     publicTraceCacheService.evictStableDataForFarm(farmId);
     return response;
   }
@@ -138,6 +147,10 @@ public class FarmMediaService {
     farmMedia.setMediaUrl(request.mediaUrl());
     farmMedia.setCaption(request.caption());
     farmMedia.setIsPublic(request.isPublic());
+  }
+
+  private boolean isImage(String contentType) {
+    return contentType != null && contentType.startsWith("image/");
   }
 
   private void deleteUploadedFileSafely(String fileKey) {

@@ -3,12 +3,12 @@ package com.farmtofolk.farmtofolk_ledger.batch;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.BatchUpdatedEvent;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.util.List;
 import java.math.BigDecimal;
 import java.util.Map;
@@ -26,20 +26,17 @@ public class BatchService {
   private final BatchRepository batchRepository;
   private final FarmRepository farmRepository;
   private final FarmerRepository farmerRepository;
-  private final PublicTraceCacheService publicTraceCacheService;
-  private final AfterCommitExecutor afterCommitExecutor;
+  private final DomainEventPublisher domainEventPublisher;
 
   public BatchService(
       BatchRepository batchRepository,
       FarmRepository farmRepository,
       FarmerRepository farmerRepository,
-      PublicTraceCacheService publicTraceCacheService,
-      AfterCommitExecutor afterCommitExecutor) {
+      DomainEventPublisher domainEventPublisher) {
     this.batchRepository = batchRepository;
     this.farmRepository = farmRepository;
     this.farmerRepository = farmerRepository;
-    this.publicTraceCacheService = publicTraceCacheService;
-    this.afterCommitExecutor = afterCommitExecutor;
+    this.domainEventPublisher = domainEventPublisher;
   }
 
   public BatchResponse createBatch(CreateBatchRequest request) {
@@ -144,7 +141,7 @@ public class BatchService {
 
     Batch savedBatch = batchRepository.save(batch);
     // Clear QR page stable data because batch details changed.
-    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForBatch(batchId));
+    domainEventPublisher.publishAfterCommit(new BatchUpdatedEvent(batchId));
     return BatchResponse.from(savedBatch);
   }
 

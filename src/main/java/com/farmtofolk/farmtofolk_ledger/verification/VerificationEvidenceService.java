@@ -4,6 +4,8 @@ import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
 import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.FileHashService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
@@ -40,6 +42,7 @@ public class VerificationEvidenceService {
   private final BlockchainProofService blockchainProofService;
   private final AfterCommitExecutor afterCommitExecutor;
   private final TransactionTemplate transactionTemplate;
+  private final DomainEventPublisher domainEventPublisher;
 
   public VerificationEvidenceService(
       VerificationEvidenceRepository verificationEvidenceRepository,
@@ -50,6 +53,7 @@ public class VerificationEvidenceService {
       CurrentUserService currentUserService,
       BlockchainProofService blockchainProofService,
       AfterCommitExecutor afterCommitExecutor,
+      DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager) {
     this.verificationEvidenceRepository = verificationEvidenceRepository;
     this.farmVerificationRepository = farmVerificationRepository;
@@ -59,6 +63,7 @@ public class VerificationEvidenceService {
     this.currentUserService = currentUserService;
     this.blockchainProofService = blockchainProofService;
     this.afterCommitExecutor = afterCommitExecutor;
+    this.domainEventPublisher = domainEventPublisher;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.transactionTemplate.setPropagationBehavior(
         TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -124,6 +129,11 @@ public class VerificationEvidenceService {
     }
 
     // The evidence and pending proof have committed before consumers see the new cache value.
+    if (isImage(storedFile.contentType())) {
+      domainEventPublisher.publishAfterCommit(
+          new ImageUploadedEvent(
+              "VERIFICATION_EVIDENCE", response.id(), storedFile.objectKey()));
+    }
     publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
     return response;
   }
@@ -179,6 +189,10 @@ public class VerificationEvidenceService {
     verificationEvidence.setCapturedAt(
         request.capturedAt() == null ? LocalDateTime.now() : request.capturedAt());
     verificationEvidence.setUploadedByUserId(currentUserService.getCurrentUserId());
+  }
+
+  private boolean isImage(String contentType) {
+    return contentType != null && contentType.startsWith("image/");
   }
 
   private void deleteUploadedFileSafely(String fileKey) {

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
 import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
 import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.*;
 import java.util.Optional;
@@ -33,6 +34,7 @@ class VerificationEvidenceServiceTest {
   @Mock CurrentUserService currentUserService;
   @Mock BlockchainProofService blockchainProofService;
   @Mock AfterCommitExecutor afterCommitExecutor;
+  @Mock DomainEventPublisher domainEventPublisher;
   @Mock PlatformTransactionManager transactionManager;
 
   @Test
@@ -68,6 +70,7 @@ class VerificationEvidenceServiceTest {
             currentUserService,
             blockchainProofService,
             afterCommitExecutor,
+            domainEventPublisher,
             transactionManager);
 
     service.uploadVerificationEvidence(verificationId, file, "Field photo", true);
@@ -100,6 +103,7 @@ class VerificationEvidenceServiceTest {
             currentUserService,
             blockchainProofService,
             afterCommitExecutor,
+            domainEventPublisher,
             transactionManager);
 
     service.createVerificationEvidence(
@@ -142,6 +146,7 @@ class VerificationEvidenceServiceTest {
             currentUserService,
             blockchainProofService,
             afterCommitExecutor,
+            domainEventPublisher,
             transactionManager);
 
     assertThrows(

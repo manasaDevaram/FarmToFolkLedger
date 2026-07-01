@@ -6,8 +6,7 @@ import static org.mockito.Mockito.verify;
 
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import java.util.List;
 import java.util.Optional;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
@@ -26,9 +25,7 @@ class TraceEventServiceTest {
 
   @Mock private BatchRepository batchRepository;
 
-  @Mock private PublicTraceCacheService publicTraceCacheService;
-
-  @Mock private AfterCommitExecutor afterCommitExecutor;
+  @Mock private DomainEventPublisher domainEventPublisher;
 
   @InjectMocks private TraceEventService traceEventService;
 

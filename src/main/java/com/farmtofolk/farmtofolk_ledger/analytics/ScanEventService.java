@@ -1,6 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.analytics;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.ScanEventRecordedEvent;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import java.time.LocalDateTime;
@@ -15,11 +17,15 @@ public class ScanEventService {
 
   private final ScanEventRepository scanEventRepository;
   private final QrCodeRepository qrCodeRepository;
+  private final DomainEventPublisher domainEventPublisher;
 
   public ScanEventService(
-      ScanEventRepository scanEventRepository, QrCodeRepository qrCodeRepository) {
+      ScanEventRepository scanEventRepository,
+      QrCodeRepository qrCodeRepository,
+      DomainEventPublisher domainEventPublisher) {
     this.scanEventRepository = scanEventRepository;
     this.qrCodeRepository = qrCodeRepository;
+    this.domainEventPublisher = domainEventPublisher;
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -51,6 +57,10 @@ public class ScanEventService {
     scanEvent.setIpHash(ipHash);
 
     ScanEvent savedScanEvent = scanEventRepository.save(scanEvent);
+    domainEventPublisher.publishAfterCommit(
+        new ScanEventRecordedEvent(
+            savedScanEvent.getId(), savedScanEvent.getBatchId(), savedScanEvent.getQrCodeId(),
+            savedScanEvent.getScannedAt(), savedScanEvent.getCity(), savedScanEvent.getDeviceType()));
     return ScanEventResponse.from(savedScanEvent);
   }
 
