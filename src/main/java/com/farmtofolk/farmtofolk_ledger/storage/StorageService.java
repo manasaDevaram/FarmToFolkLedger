@@ -9,5 +9,7 @@ public interface StorageService {
 
   StoredFileResponse upload(MultipartFile file, String folderPath, Set<String> allowedContentTypes);
 
-  void delete(String fileKey);
+  String generatePresignedUrl(String objectKey);
+
+  void delete(String objectKey);
 }

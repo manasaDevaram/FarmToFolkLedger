@@ -38,7 +38,9 @@ storage:
     bucket: ${AWS_S3_BUCKET:}
     access-key: ${AWS_ACCESS_KEY_ID:dummy-access-key}
     secret-key: ${AWS_SECRET_ACCESS_KEY:dummy-secret-key}
-    presigned-url-expiry-minutes: ${AWS_S3_PRESIGNED_EXPIRY_MINUTES:10}
+
+media:
+  presigned-url-expiry-minutes: ${MEDIA_PRESIGNED_URL_EXPIRY_MINUTES:15}
 
 app:
   security:

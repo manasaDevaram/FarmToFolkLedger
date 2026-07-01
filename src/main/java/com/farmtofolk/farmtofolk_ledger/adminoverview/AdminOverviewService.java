@@ -30,6 +30,7 @@ import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ public class AdminOverviewService {
     private final PriceBreakdownRepository priceBreakdownRepository;
     private final TraceEventRepository traceEventRepository;
     private final QrCodeRepository qrCodeRepository;
+    private final StorageService storageService;
 
     public AdminOverviewService(
             FarmerRepository farmerRepository,
@@ -68,7 +70,8 @@ public class AdminOverviewService {
             VerificationEvidenceRepository verificationEvidenceRepository,
             PriceBreakdownRepository priceBreakdownRepository,
             TraceEventRepository traceEventRepository,
-            QrCodeRepository qrCodeRepository) {
+            QrCodeRepository qrCodeRepository,
+            StorageService storageService) {
         this.farmerRepository = farmerRepository;
         this.farmRepository = farmRepository;
         this.batchRepository = batchRepository;
@@ -80,6 +83,7 @@ public class AdminOverviewService {
         this.priceBreakdownRepository = priceBreakdownRepository;
         this.traceEventRepository = traceEventRepository;
         this.qrCodeRepository = qrCodeRepository;
+        this.storageService = storageService;
     }
 
     public AdminDashboardSummaryResponse getDashboardSummary() {
@@ -154,7 +158,7 @@ public class AdminOverviewService {
         }
 
         return new AdminFarmerOverviewResponse(
-                FarmerResponse.from(farmer),
+                FarmerResponse.from(farmer, storageService),
                 farms.stream().map(FarmResponse::from).toList(),
                 batches.stream().map(BatchResponse::from).toList(),
                 new AdminFarmerPaymentSummary(totalPayable, totalPaid, totalPending));
@@ -170,7 +174,7 @@ public class AdminOverviewService {
                 : farmerRepository.findById(farm.getFarmerId()).orElse(null);
 
         List<FarmMediaResponse> media = farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId).stream()
-                .map(FarmMediaResponse::from)
+                .map(mediaItem -> FarmMediaResponse.from(mediaItem, storageService))
                 .toList();
 
         FarmVerification latestVerification = farmVerificationRepository
@@ -182,14 +186,14 @@ public class AdminOverviewService {
                 : verificationEvidenceRepository
                         .findByVerificationIdOrderByCreatedAtAsc(latestVerification.getId())
                         .stream()
-                        .map(VerificationEvidenceResponse::from)
+                        .map(evidence -> VerificationEvidenceResponse.from(evidence, storageService))
                         .toList();
 
         List<BatchResponse> batches = batchRepository.findByFarmId(farmId).stream().map(BatchResponse::from).toList();
 
         return new AdminFarmOverviewResponse(
                 FarmResponse.from(farm),
-                farmer == null ? null : FarmerResponse.from(farmer),
+                farmer == null ? null : FarmerResponse.from(farmer, storageService),
                 media,
                 latestVerification == null ? null : FarmVerificationResponse.from(latestVerification),
                 verificationEvidence,
@@ -246,7 +250,7 @@ public class AdminOverviewService {
 
         return new AdminBatchOverviewResponse(
                 BatchResponse.from(batch),
-                farmer == null ? null : FarmerResponse.from(farmer),
+                farmer == null ? null : FarmerResponse.from(farmer, storageService),
                 farm == null ? null : FarmResponse.from(farm),
                 procurement,
                 saleTransactions,

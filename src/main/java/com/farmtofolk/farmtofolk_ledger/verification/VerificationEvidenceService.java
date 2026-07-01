@@ -81,7 +81,7 @@ public class VerificationEvidenceService {
     // Clear QR page stable data because verification evidence changed.
     afterCommitExecutor.run(
         () -> publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId()));
-    return VerificationEvidenceResponse.from(savedVerificationEvidence);
+    return VerificationEvidenceResponse.from(savedVerificationEvidence, storageService);
   }
 
   public VerificationEvidenceResponse uploadVerificationEvidence(
@@ -104,8 +104,8 @@ public class VerificationEvidenceService {
                 VerificationEvidence evidence = new VerificationEvidence();
                 evidence.setVerificationId(verificationId);
                 evidence.setFileType(storedFile.contentType());
-                evidence.setFileUrl(storedFile.fileUrl());
-                evidence.setFileKey(storedFile.fileKey());
+                evidence.setFileUrl(storedFile.objectKey());
+                evidence.setFileKey(storedFile.objectKey());
                 evidence.setFileHash(fileHash);
                 evidence.setContentType(storedFile.contentType());
                 evidence.setSizeBytes(storedFile.sizeBytes());
@@ -116,7 +116,7 @@ public class VerificationEvidenceService {
 
                 VerificationEvidence saved = verificationEvidenceRepository.save(evidence);
                 blockchainProofService.createPendingEvidenceProof(saved.getId(), fileHash);
-                return VerificationEvidenceResponse.from(saved);
+                return VerificationEvidenceResponse.from(saved, storageService);
               });
     } catch (RuntimeException exception) {
       deleteUploadedFileSafely(storedFile.fileKey());
@@ -137,7 +137,7 @@ public class VerificationEvidenceService {
     return verificationEvidenceRepository
         .findByVerificationIdOrderByCreatedAtAsc(verificationId)
         .stream()
-        .map(VerificationEvidenceResponse::from)
+        .map(evidence -> VerificationEvidenceResponse.from(evidence, storageService))
         .toList();
   }
 

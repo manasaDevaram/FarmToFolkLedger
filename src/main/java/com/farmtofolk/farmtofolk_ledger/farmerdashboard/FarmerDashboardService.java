@@ -27,6 +27,7 @@ import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransactionResponse;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEvent;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -57,6 +58,7 @@ public class FarmerDashboardService {
   private final PriceBreakdownRepository priceBreakdownRepository;
   private final BatchProcurementRepository procurementRepository;
   private final BatchSaleTransactionRepository saleTransactionRepository;
+  private final StorageService storageService;
 
   public FarmerDashboardService(
       CurrentUserService currentUserService,
@@ -66,7 +68,8 @@ public class FarmerDashboardService {
       TraceEventRepository traceEventRepository,
       PriceBreakdownRepository priceBreakdownRepository,
       BatchProcurementRepository procurementRepository,
-      BatchSaleTransactionRepository saleTransactionRepository) {
+      BatchSaleTransactionRepository saleTransactionRepository,
+      StorageService storageService) {
     this.currentUserService = currentUserService;
     this.farmerRepository = farmerRepository;
     this.farmRepository = farmRepository;
@@ -75,6 +78,7 @@ public class FarmerDashboardService {
     this.priceBreakdownRepository = priceBreakdownRepository;
     this.procurementRepository = procurementRepository;
     this.saleTransactionRepository = saleTransactionRepository;
+    this.storageService = storageService;
   }
 
   public FarmerDashboardSummaryResponse getSummary(UUID requestedFarmerId) {
@@ -97,7 +101,7 @@ public class FarmerDashboardService {
                             .toList()))
             .toList();
 
-    return new FarmerDashboardSummaryResponse(FarmerResponse.from(farmer), farmResponses);
+    return new FarmerDashboardSummaryResponse(FarmerResponse.from(farmer, storageService), farmResponses);
   }
 
   public List<FarmResponse> getFarms(UUID requestedFarmerId) {

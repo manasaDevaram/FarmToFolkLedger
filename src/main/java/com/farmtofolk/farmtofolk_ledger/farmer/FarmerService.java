@@ -84,7 +84,7 @@ public class FarmerService {
 
     // Farmer and login account are committed atomically.
     Farmer savedFarmer = farmerRepository.save(farmer);
-    return FarmerResponse.from(savedFarmer);
+    return FarmerResponse.from(savedFarmer, storageService);
   }
 
   public FarmerResponse uploadProfilePhoto(UUID farmerId, MultipartFile file) {
@@ -94,7 +94,10 @@ public class FarmerService {
             file, "farmers/" + farmerId + "/profile-photo", PROFILE_PHOTO_CONTENT_TYPES);
     FarmerResponse response =
         saveUploadedFarmerFile(
-            farmerId, storedFile, farmer -> farmer.setProfilePhotoUrl(storedFile.fileUrl()));
+            farmerId, storedFile, farmer -> {
+              farmer.setProfilePhotoKey(storedFile.objectKey());
+              farmer.setProfilePhotoUrl(null);
+            });
     publicTraceCacheService.evictStableDataForFarmer(farmerId);
     return response;
   }
@@ -106,7 +109,10 @@ public class FarmerService {
             file, "farmers/" + farmerId + "/intro-video", INTRO_VIDEO_CONTENT_TYPES);
     FarmerResponse response =
         saveUploadedFarmerFile(
-            farmerId, storedFile, farmer -> farmer.setIntroVideoUrl(storedFile.fileUrl()));
+            farmerId, storedFile, farmer -> {
+              farmer.setIntroVideoKey(storedFile.objectKey());
+              farmer.setIntroVideoUrl(null);
+            });
     publicTraceCacheService.evictStableDataForFarmer(farmerId);
     return response;
   }
@@ -115,13 +121,14 @@ public class FarmerService {
   public FarmerResponse getFarmer(UUID farmerId) {
     // Load one farmer by ID and convert it to a response.
     Farmer farmer = findFarmer(farmerId);
-    return FarmerResponse.from(farmer);
+    return FarmerResponse.from(farmer, storageService);
   }
 
   @Transactional(readOnly = true)
   public List<FarmerResponse> getAllFarmers() {
     // Fetch all farmers and convert each one to a response.
-    return farmerRepository.findAll().stream().map(FarmerResponse::from).toList();
+    return farmerRepository.findAll().stream()
+        .map(farmer -> FarmerResponse.from(farmer, storageService)).toList();
   }
 
   @Transactional
@@ -135,7 +142,7 @@ public class FarmerService {
     Farmer savedFarmer = farmerRepository.save(farmer);
     // Clear QR page stable data because farmer details changed.
     afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarmer(farmerId));
-    return FarmerResponse.from(savedFarmer);
+    return FarmerResponse.from(savedFarmer, storageService);
   }
 
   @Transactional
@@ -150,7 +157,7 @@ public class FarmerService {
     Farmer savedFarmer = farmerRepository.save(farmer);
     // Clear QR page stable data because farmer status changed.
     afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarmer(farmerId));
-    return FarmerResponse.from(savedFarmer);
+    return FarmerResponse.from(savedFarmer, storageService);
   }
 
   private Farmer findFarmer(UUID farmerId) {
@@ -228,7 +235,7 @@ public class FarmerService {
           status -> {
             Farmer farmer = findFarmer(farmerId);
             update.accept(farmer);
-            return FarmerResponse.from(farmerRepository.save(farmer));
+            return FarmerResponse.from(farmerRepository.save(farmer), storageService);
           });
     } catch (RuntimeException exception) {
       deleteUploadedFileSafely(storedFile.fileKey());

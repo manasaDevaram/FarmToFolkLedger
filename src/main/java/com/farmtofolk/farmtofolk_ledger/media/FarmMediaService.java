@@ -60,7 +60,7 @@ public class FarmMediaService {
     FarmMedia savedFarmMedia = farmMediaRepository.save(farmMedia);
     // Clear QR page stable data because farm media changed.
     afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarm(farmId));
-    return FarmMediaResponse.from(savedFarmMedia);
+    return FarmMediaResponse.from(savedFarmMedia, storageService);
   }
 
   public FarmMediaResponse uploadFarmMedia(UUID farmId, MultipartFile file, String caption) {
@@ -79,13 +79,13 @@ public class FarmMediaService {
                 FarmMedia farmMedia = new FarmMedia();
                 farmMedia.setFarmId(farmId);
                 farmMedia.setMediaType(storedFile.contentType());
-                farmMedia.setMediaUrl(storedFile.fileUrl());
-                farmMedia.setFileKey(storedFile.fileKey());
+                farmMedia.setMediaUrl(storedFile.objectKey());
+                farmMedia.setFileKey(storedFile.objectKey());
                 farmMedia.setContentType(storedFile.contentType());
                 farmMedia.setSizeBytes(storedFile.sizeBytes());
                 farmMedia.setCaption(caption);
                 farmMedia.setIsPublic(true);
-                return FarmMediaResponse.from(farmMediaRepository.save(farmMedia));
+                return FarmMediaResponse.from(farmMediaRepository.save(farmMedia), storageService);
               });
     } catch (RuntimeException exception) {
       deleteUploadedFileSafely(storedFile.fileKey());
@@ -104,7 +104,7 @@ public class FarmMediaService {
 
     // Fetch media oldest first and convert each one to a response.
     return farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId).stream()
-        .map(FarmMediaResponse::from)
+        .map(media -> FarmMediaResponse.from(media, storageService))
         .toList();
   }
 

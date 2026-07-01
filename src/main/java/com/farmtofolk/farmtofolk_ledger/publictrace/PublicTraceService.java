@@ -11,6 +11,7 @@ import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class PublicTraceService {
   private final TraceEventRepository traceEventRepository;
   private final ScanEventService scanEventService;
   private final PublicTraceCacheService publicTraceCacheService;
+  private final StorageService storageService;
 
   public PublicTraceService(
       QrCodeRepository qrCodeRepository,
@@ -32,13 +34,15 @@ public class PublicTraceService {
       PriceBreakdownRepository priceBreakdownRepository,
       TraceEventRepository traceEventRepository,
       ScanEventService scanEventService,
-      PublicTraceCacheService publicTraceCacheService) {
+      PublicTraceCacheService publicTraceCacheService,
+      StorageService storageService) {
     this.qrCodeRepository = qrCodeRepository;
     this.batchRepository = batchRepository;
     this.priceBreakdownRepository = priceBreakdownRepository;
     this.traceEventRepository = traceEventRepository;
     this.scanEventService = scanEventService;
     this.publicTraceCacheService = publicTraceCacheService;
+    this.storageService = storageService;
   }
 
   public PublicTraceResponse getPublicTrace(String publicToken) {
@@ -77,11 +81,13 @@ public class PublicTraceService {
     return new PublicTraceResponse(
         QrCodeResponse.from(qrCode),
         stableData.batch(),
-        stableData.farmer(),
+        stableData.farmer().withPresignedUrls(storageService),
         stableData.farm(),
         stableData.latestVerification(),
-        stableData.verificationEvidence(),
-        stableData.farmMedia(),
+        stableData.verificationEvidence().stream()
+            .map(evidence -> evidence.withPresignedUrl(storageService)).toList(),
+        stableData.farmMedia().stream()
+            .map(media -> media.withPresignedUrl(storageService)).toList(),
         priceBreakdown,
         traceEvents);
   }
