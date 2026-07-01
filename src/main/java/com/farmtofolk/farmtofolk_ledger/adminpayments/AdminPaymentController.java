@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.adminpayments;
 
 import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementResponse;
+import com.farmtofolk.farmtofolk_ledger.batch.BatchResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -36,8 +37,15 @@ public class AdminPaymentController {
   }
 
   @PatchMapping("/procurements/{procurementId}/payment-status")
+  @Deprecated
   public BatchProcurementResponse updatePaymentStatus(
       @PathVariable UUID procurementId, @Valid @RequestBody UpdatePaymentStatusRequest request) {
     return adminPaymentService.updatePaymentStatus(procurementId, request);
+  }
+
+  @PatchMapping("/batches/{batchId}/payment-status")
+  public BatchResponse updateBatchPaymentStatus(
+      @PathVariable UUID batchId, @Valid @RequestBody UpdatePaymentStatusRequest request) {
+    return adminPaymentService.updateBatchPaymentStatus(batchId, request);
   }
 }

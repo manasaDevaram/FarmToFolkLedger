@@ -4,8 +4,6 @@ import com.farmtofolk.farmtofolk_ledger.analytics.ScanEventService;
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
@@ -22,7 +20,6 @@ public class PublicTraceService {
 
   private final QrCodeRepository qrCodeRepository;
   private final BatchRepository batchRepository;
-  private final PriceBreakdownRepository priceBreakdownRepository;
   private final TraceEventRepository traceEventRepository;
   private final ScanEventService scanEventService;
   private final PublicTraceCacheService publicTraceCacheService;
@@ -31,14 +28,12 @@ public class PublicTraceService {
   public PublicTraceService(
       QrCodeRepository qrCodeRepository,
       BatchRepository batchRepository,
-      PriceBreakdownRepository priceBreakdownRepository,
       TraceEventRepository traceEventRepository,
       ScanEventService scanEventService,
       PublicTraceCacheService publicTraceCacheService,
       StorageService storageService) {
     this.qrCodeRepository = qrCodeRepository;
     this.batchRepository = batchRepository;
-    this.priceBreakdownRepository = priceBreakdownRepository;
     this.traceEventRepository = traceEventRepository;
     this.scanEventService = scanEventService;
     this.publicTraceCacheService = publicTraceCacheService;
@@ -68,11 +63,6 @@ public class PublicTraceService {
             .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
 
     // Always load price and trace events live because they change more often.
-    PriceBreakdownResponse priceBreakdown =
-        priceBreakdownRepository
-            .findByBatchId(batch.getId())
-            .map(PriceBreakdownResponse::from)
-            .orElse(null);
     List<TraceEventResponse> traceEvents =
         traceEventRepository.findByBatchIdOrderByEventTimeAsc(batch.getId()).stream()
             .map(TraceEventResponse::from)
@@ -80,7 +70,7 @@ public class PublicTraceService {
 
     return new PublicTraceResponse(
         QrCodeResponse.from(qrCode),
-        stableData.batch(),
+        PublicBatchTraceResponse.from(stableData.batch()),
         stableData.farmer().withPresignedUrls(storageService),
         stableData.farm(),
         stableData.latestVerification(),
@@ -88,7 +78,6 @@ public class PublicTraceService {
             .map(evidence -> evidence.withPresignedUrl(storageService)).toList(),
         stableData.farmMedia().stream()
             .map(media -> media.withPresignedUrl(storageService)).toList(),
-        priceBreakdown,
         traceEvents);
   }
 }

@@ -92,8 +92,14 @@ class AdminPaymentServiceTest {
     UUID farmId = UUID.randomUUID();
     Batch firstBatch = batch(UUID.randomUUID(), farmerId, farmId, "TOM-001", "Tomato");
     Batch secondBatch = batch(UUID.randomUUID(), farmerId, farmId, "CHI-001", "Chilli");
-    BatchProcurement paid = procurement(firstBatch.getId(), "60", "40", PaymentStatus.PAID, 2);
-    BatchProcurement unpaid = procurement(secondBatch.getId(), "30", "40", PaymentStatus.UNPAID, 1);
+    when(firstBatch.getQuantityReceived()).thenReturn(new BigDecimal("60"));
+    when(firstBatch.getFarmerPricePerUnit()).thenReturn(new BigDecimal("40"));
+    when(firstBatch.getTotalFarmerAmount()).thenReturn(new BigDecimal("2400"));
+    when(firstBatch.getPaymentStatus()).thenReturn(PaymentStatus.PAID);
+    when(secondBatch.getQuantityReceived()).thenReturn(new BigDecimal("30"));
+    when(secondBatch.getFarmerPricePerUnit()).thenReturn(new BigDecimal("40"));
+    when(secondBatch.getTotalFarmerAmount()).thenReturn(new BigDecimal("1200"));
+    when(secondBatch.getPaymentStatus()).thenReturn(PaymentStatus.UNPAID);
     Farmer farmer = mock(Farmer.class);
     when(farmer.getId()).thenReturn(farmerId);
     when(farmer.getName()).thenReturn("Ramesh");
@@ -101,12 +107,11 @@ class AdminPaymentServiceTest {
     Farm farm = mock(Farm.class);
     when(farm.getId()).thenReturn(farmId);
     when(farm.getFarmName()).thenReturn("Green Farm");
-    return new Fixture(List.of(paid, unpaid), List.of(firstBatch, secondBatch), farmer, farm);
+    return new Fixture(List.of(firstBatch, secondBatch), farmer, farm);
   }
 
   private void stubFixture(Fixture fixture) {
-    when(procurementRepository.findAll()).thenReturn(fixture.procurements());
-    when(batchRepository.findAllById(any())).thenReturn(fixture.batches());
+    when(batchRepository.findAll()).thenReturn(fixture.batches());
     when(farmerRepository.findAllById(any())).thenReturn(List.of(fixture.farmer()));
     when(farmRepository.findAllById(any())).thenReturn(List.of(fixture.farm()));
   }
@@ -122,22 +127,6 @@ class AdminPaymentServiceTest {
     return batch;
   }
 
-  private BatchProcurement procurement(
-      UUID batchId, String quantity, String price, PaymentStatus status, int daysAgo) {
-    BatchProcurement procurement = mock(BatchProcurement.class);
-    BigDecimal quantityValue = new BigDecimal(quantity);
-    BigDecimal priceValue = new BigDecimal(price);
-    when(procurement.getId()).thenReturn(UUID.randomUUID());
-    when(procurement.getBatchId()).thenReturn(batchId);
-    when(procurement.getQuantityTaken()).thenReturn(quantityValue);
-    when(procurement.getFarmerPricePerUnit()).thenReturn(priceValue);
-    when(procurement.getFarmerAmountPayable()).thenReturn(quantityValue.multiply(priceValue));
-    when(procurement.getPaymentStatus()).thenReturn(status);
-    when(procurement.getCurrency()).thenReturn("INR");
-    when(procurement.getProcuredAt()).thenReturn(LocalDateTime.now().minusDays(daysAgo));
-    return procurement;
-  }
-
   private record Fixture(
-      List<BatchProcurement> procurements, List<Batch> batches, Farmer farmer, Farm farm) {}
+      List<Batch> batches, Farmer farmer, Farm farm) {}
 }

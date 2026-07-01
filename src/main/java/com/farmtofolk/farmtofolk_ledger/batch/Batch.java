@@ -12,6 +12,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 @Entity
 @Table(name = "batches")
@@ -35,12 +38,44 @@ public class Batch {
 
   private String variety;
 
-  private BigDecimal quantity;
+  @Column(name = "quantity_received", nullable = false, precision = 19, scale = 3)
+  private BigDecimal quantityReceived;
+
+  @Column(name = "quantity_sold", nullable = false, precision = 19, scale = 3)
+  private BigDecimal quantitySold = BigDecimal.ZERO;
+
+  @Column(name = "quantity_wasted", nullable = false, precision = 19, scale = 3)
+  private BigDecimal quantityWasted = BigDecimal.ZERO;
+
+  @Column(name = "quantity_used_in_product", nullable = false, precision = 19, scale = 3)
+  private BigDecimal quantityUsedInProduct = BigDecimal.ZERO;
+
+  @Column(name = "quantity_available", nullable = false, precision = 19, scale = 3)
+  private BigDecimal quantityAvailable;
 
   private String unit;
 
   @Column(name = "harvest_date")
   private LocalDate harvestDate;
+
+  @Column(name = "received_date", nullable = false)
+  private LocalDate receivedDate;
+
+  @Column(name = "farmer_price_per_unit", nullable = false, precision = 19, scale = 2)
+  private BigDecimal farmerPricePerUnit;
+
+  @Column(name = "total_farmer_amount", nullable = false, precision = 19, scale = 2)
+  private BigDecimal totalFarmerAmount;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "payment_status", nullable = false)
+  private PaymentStatus paymentStatus;
+
+  @Column(name = "consumer_price_per_unit", nullable = false, precision = 19, scale = 2)
+  private BigDecimal consumerPricePerUnit;
+
+  @Column(name = "operational_cost_per_unit", nullable = false, precision = 19, scale = 2)
+  private BigDecimal operationalCostPerUnit;
 
   private String status;
 
@@ -55,11 +90,39 @@ public class Batch {
     LocalDateTime now = LocalDateTime.now();
     createdAt = now;
     updatedAt = now;
+    initializeAndCalculate();
   }
 
   @PreUpdate
   void preUpdate() {
     updatedAt = LocalDateTime.now();
+    calculateTotalFarmerAmount();
+  }
+
+  private void initializeAndCalculate() {
+    quantitySold = quantitySold == null ? BigDecimal.ZERO : quantitySold;
+    quantityWasted = quantityWasted == null ? BigDecimal.ZERO : quantityWasted;
+    quantityUsedInProduct = quantityUsedInProduct == null ? BigDecimal.ZERO : quantityUsedInProduct;
+    quantityAvailable = quantityAvailable == null ? quantityReceived : quantityAvailable;
+    calculateTotalFarmerAmount();
+  }
+
+  public void calculateTotalFarmerAmount() {
+    if (quantityReceived != null && farmerPricePerUnit != null) {
+      totalFarmerAmount = quantityReceived.multiply(farmerPricePerUnit);
+    }
+  }
+
+  public void initializeInventory() {
+    quantitySold = BigDecimal.ZERO;
+    quantityWasted = BigDecimal.ZERO;
+    quantityUsedInProduct = BigDecimal.ZERO;
+    quantityAvailable = quantityReceived;
+    calculateTotalFarmerAmount();
+  }
+
+  public BigDecimal getMargin() {
+    return consumerPricePerUnit.subtract(farmerPricePerUnit).subtract(operationalCostPerUnit);
   }
 
   public UUID getId() {
@@ -106,13 +169,30 @@ public class Batch {
     this.variety = variety;
   }
 
-  public BigDecimal getQuantity() {
-    return quantity;
+  public BigDecimal getQuantityReceived() {
+    return quantityReceived;
   }
 
-  public void setQuantity(BigDecimal quantity) {
-    this.quantity = quantity;
+  public void setQuantityReceived(BigDecimal quantityReceived) {
+    this.quantityReceived = quantityReceived;
   }
+
+  /** @deprecated use quantityReceived. */
+  @Deprecated
+  public BigDecimal getQuantity() { return quantityReceived; }
+
+  /** @deprecated use quantityReceived. */
+  @Deprecated
+  public void setQuantity(BigDecimal quantity) { this.quantityReceived = quantity; }
+
+  public BigDecimal getQuantitySold() { return quantitySold; }
+  public void setQuantitySold(BigDecimal quantitySold) { this.quantitySold = quantitySold; }
+  public BigDecimal getQuantityWasted() { return quantityWasted; }
+  public void setQuantityWasted(BigDecimal quantityWasted) { this.quantityWasted = quantityWasted; }
+  public BigDecimal getQuantityUsedInProduct() { return quantityUsedInProduct; }
+  public void setQuantityUsedInProduct(BigDecimal value) { this.quantityUsedInProduct = value; }
+  public BigDecimal getQuantityAvailable() { return quantityAvailable; }
+  public void setQuantityAvailable(BigDecimal quantityAvailable) { this.quantityAvailable = quantityAvailable; }
 
   public String getUnit() {
     return unit;
@@ -129,6 +209,18 @@ public class Batch {
   public void setHarvestDate(LocalDate harvestDate) {
     this.harvestDate = harvestDate;
   }
+
+  public LocalDate getReceivedDate() { return receivedDate; }
+  public void setReceivedDate(LocalDate receivedDate) { this.receivedDate = receivedDate; }
+  public BigDecimal getFarmerPricePerUnit() { return farmerPricePerUnit; }
+  public void setFarmerPricePerUnit(BigDecimal value) { this.farmerPricePerUnit = value; }
+  public BigDecimal getTotalFarmerAmount() { return totalFarmerAmount; }
+  public PaymentStatus getPaymentStatus() { return paymentStatus; }
+  public void setPaymentStatus(PaymentStatus paymentStatus) { this.paymentStatus = paymentStatus; }
+  public BigDecimal getConsumerPricePerUnit() { return consumerPricePerUnit; }
+  public void setConsumerPricePerUnit(BigDecimal value) { this.consumerPricePerUnit = value; }
+  public BigDecimal getOperationalCostPerUnit() { return operationalCostPerUnit; }
+  public void setOperationalCostPerUnit(BigDecimal value) { this.operationalCostPerUnit = value; }
 
   public String getStatus() {
     return status;

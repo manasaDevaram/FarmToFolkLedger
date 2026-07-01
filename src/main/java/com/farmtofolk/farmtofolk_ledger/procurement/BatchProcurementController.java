@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/batches/{batchId}/procurement")
+@Deprecated
 public class BatchProcurementController {
 
   private final BatchProcurementService procurementService;

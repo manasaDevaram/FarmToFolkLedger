@@ -1,6 +1,7 @@
 package com.farmtofolk.farmtofolk_ledger.batch;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,6 +39,21 @@ class BatchServiceTest {
   @InjectMocks private BatchService batchService;
 
   @Test
+  void newBatchInitializesInventoryAndFarmerAmount() {
+    Batch batch = new Batch();
+    batch.setQuantityReceived(new BigDecimal("100"));
+    batch.setFarmerPricePerUnit(new BigDecimal("60"));
+
+    batch.initializeInventory();
+
+    assertEquals(new BigDecimal("100"), batch.getQuantityAvailable());
+    assertEquals(BigDecimal.ZERO, batch.getQuantitySold());
+    assertEquals(BigDecimal.ZERO, batch.getQuantityWasted());
+    assertEquals(BigDecimal.ZERO, batch.getQuantityUsedInProduct());
+    assertEquals(new BigDecimal("6000"), batch.getTotalFarmerAmount());
+  }
+
+  @Test
   void createBatchRejectsFarmOwnedByDifferentFarmer() {
     UUID requestFarmerId = UUID.randomUUID();
     UUID actualFarmOwnerId = UUID.randomUUID();
@@ -58,6 +74,11 @@ class BatchServiceTest {
             BigDecimal.TEN,
             "kg",
             LocalDate.now(),
+            LocalDate.now(),
+            new BigDecimal("20"),
+            com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
+            new BigDecimal("40"),
+            new BigDecimal("5"),
             "READY");
 
     assertThrows(BadRequestException.class, () -> batchService.createBatch(request));
@@ -94,6 +115,11 @@ class BatchServiceTest {
             BigDecimal.TEN,
             "kg",
             LocalDate.now(),
+            LocalDate.now(),
+            new BigDecimal("20"),
+            com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
+            new BigDecimal("40"),
+            new BigDecimal("5"),
             "READY");
 
     batchService.updateBatch(batchId, request);
@@ -121,6 +147,11 @@ class BatchServiceTest {
             BigDecimal.TEN,
             "kg",
             LocalDate.now(),
+            LocalDate.now(),
+            new BigDecimal("20"),
+            com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
+            new BigDecimal("40"),
+            new BigDecimal("5"),
             "READY");
 
     assertThrows(ConflictException.class, () -> batchService.createBatch(request));

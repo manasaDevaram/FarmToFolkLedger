@@ -134,6 +134,8 @@ public class SecurityConfig {
                     .hasAnyRole("ADMIN", "FIELD_OFFICER")
                     .requestMatchers(HttpMethod.PATCH, "/api/farmers/**")
                     .hasAnyRole("ADMIN", "FIELD_OFFICER")
+                    .requestMatchers(HttpMethod.PATCH, "/api/batches/**")
+                    .hasAnyRole("ADMIN", "FIELD_OFFICER")
                     .requestMatchers(HttpMethod.GET, "/api/**")
                     .hasAnyRole("ADMIN", "FIELD_OFFICER")
                     .anyRequest()

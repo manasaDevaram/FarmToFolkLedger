@@ -10,6 +10,7 @@ import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.util.List;
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -46,11 +47,13 @@ public class BatchService {
     verifyFarmerExists(request.farmerId());
     // Make sure the farm belongs to that farmer.
     verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
-    validateUniqueBatchCode(request.batchCode(), null);
+    String batchCode = normalizeOrGenerateBatchCode(request.batchCode());
+    validateUniqueBatchCode(batchCode, null);
 
     // Copy request data into a new Batch entity.
     Batch batch = new Batch();
-    applyRequest(batch, request);
+    applyRequest(batch, request, batchCode);
+    batch.initializeInventory();
 
     // Save the batch and return API-friendly response data.
     Batch savedBatch = batchRepository.save(batch);
@@ -124,11 +127,20 @@ public class BatchService {
     verifyFarmerExists(request.farmerId());
     // Make sure the updated farm belongs to that farmer.
     verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
-    validateUniqueBatchCode(request.batchCode(), batchId);
+    String batchCode = normalizeOrGenerateBatchCode(request.batchCode());
+    validateUniqueBatchCode(batchCode, batchId);
 
     // Load the existing batch, update its fields, then save it.
     Batch batch = findBatch(batchId);
-    applyRequest(batch, request);
+    applyRequest(batch, request, batchCode);
+    BigDecimal committedQuantity = zero(batch.getQuantitySold())
+        .add(zero(batch.getQuantityWasted()))
+        .add(zero(batch.getQuantityUsedInProduct()));
+    if (request.quantityReceived().compareTo(committedQuantity) < 0) {
+      throw new BadRequestException("quantityReceived cannot be less than already used quantity");
+    }
+    batch.setQuantityAvailable(request.quantityReceived().subtract(committedQuantity));
+    batch.calculateTotalFarmerAmount();
 
     Batch savedBatch = batchRepository.save(batch);
     // Clear QR page stable data because batch details changed.
@@ -170,16 +182,21 @@ public class BatchService {
     }
   }
 
-  private void applyRequest(Batch batch, CreateBatchRequest request) {
+  private void applyRequest(Batch batch, CreateBatchRequest request, String batchCode) {
     // Keep request-to-entity field mapping in one place.
-    batch.setBatchCode(request.batchCode().trim());
+    batch.setBatchCode(batchCode);
     batch.setFarmId(request.farmId());
     batch.setFarmerId(request.farmerId());
     batch.setCropName(request.cropName());
     batch.setVariety(request.variety());
-    batch.setQuantity(request.quantity());
+    batch.setQuantityReceived(request.quantityReceived());
     batch.setUnit(request.unit());
     batch.setHarvestDate(request.harvestDate());
+    batch.setReceivedDate(request.receivedDate());
+    batch.setFarmerPricePerUnit(request.farmerPricePerUnit());
+    batch.setPaymentStatus(request.paymentStatus());
+    batch.setConsumerPricePerUnit(request.consumerPricePerUnit());
+    batch.setOperationalCostPerUnit(request.operationalCostPerUnit());
     batch.setStatus(request.status());
   }
 
@@ -206,5 +223,20 @@ public class BatchService {
             ? batchRepository.existsByBatchCode(normalizedBatchCode)
             : batchRepository.existsByBatchCodeAndIdNot(normalizedBatchCode, batchId);
     if (duplicate) throw new ConflictException("Batch code already exists");
+  }
+
+  private String normalizeOrGenerateBatchCode(String requestedCode) {
+    if (requestedCode != null && !requestedCode.isBlank()) return requestedCode.trim();
+    String prefix = "FTF-BATCH-" + java.time.LocalDate.now().getYear() + "-";
+    long sequence = batchRepository.count() + 1;
+    String generated = prefix + String.format("%06d", sequence);
+    while (batchRepository.existsByBatchCode(generated)) {
+      generated = prefix + String.format("%06d", ++sequence);
+    }
+    return generated;
+  }
+
+  private BigDecimal zero(BigDecimal value) {
+    return value == null ? BigDecimal.ZERO : value;
   }
 }

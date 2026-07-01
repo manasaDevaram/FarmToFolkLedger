@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 
 public interface BatchRepository extends JpaRepository<Batch, UUID> {
 
@@ -18,4 +20,7 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
   boolean existsByBatchCodeAndIdNot(String batchCode, UUID id);
 
   long countByFarmerId(UUID farmerId);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  Optional<Batch> findForUpdateById(UUID id);
 }

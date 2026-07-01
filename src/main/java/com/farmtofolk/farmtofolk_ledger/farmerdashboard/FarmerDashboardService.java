@@ -14,20 +14,13 @@ import com.farmtofolk.farmtofolk_ledger.farm.FarmResponse;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerResponse;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdown;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurement;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementRepository;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementResponse;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransaction;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransactionRepository;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransactionResponse;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEvent;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
+import com.farmtofolk.farmtofolk_ledger.batchusage.BatchUsage;
+import com.farmtofolk.farmtofolk_ledger.batchusage.BatchUsageRepository;
+import com.farmtofolk.farmtofolk_ledger.batchusage.BatchUsageResponse;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -55,9 +48,7 @@ public class FarmerDashboardService {
   private final FarmRepository farmRepository;
   private final BatchRepository batchRepository;
   private final TraceEventRepository traceEventRepository;
-  private final PriceBreakdownRepository priceBreakdownRepository;
-  private final BatchProcurementRepository procurementRepository;
-  private final BatchSaleTransactionRepository saleTransactionRepository;
+  private final BatchUsageRepository batchUsageRepository;
   private final StorageService storageService;
 
   public FarmerDashboardService(
@@ -66,18 +57,14 @@ public class FarmerDashboardService {
       FarmRepository farmRepository,
       BatchRepository batchRepository,
       TraceEventRepository traceEventRepository,
-      PriceBreakdownRepository priceBreakdownRepository,
-      BatchProcurementRepository procurementRepository,
-      BatchSaleTransactionRepository saleTransactionRepository,
+      BatchUsageRepository batchUsageRepository,
       StorageService storageService) {
     this.currentUserService = currentUserService;
     this.farmerRepository = farmerRepository;
     this.farmRepository = farmRepository;
     this.batchRepository = batchRepository;
     this.traceEventRepository = traceEventRepository;
-    this.priceBreakdownRepository = priceBreakdownRepository;
-    this.procurementRepository = procurementRepository;
-    this.saleTransactionRepository = saleTransactionRepository;
+    this.batchUsageRepository = batchUsageRepository;
     this.storageService = storageService;
   }
 
@@ -135,71 +122,46 @@ public class FarmerDashboardService {
             .findById(batch.getFarmId())
             .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
 
-    BatchProcurement procurement = procurementRepository.findByBatchId(batchId).orElse(null);
-    List<BatchSaleTransaction> sales =
-        saleTransactionRepository.findByBatchIdOrderBySoldAtAsc(batchId);
-    BigDecimal totalQuantitySold = sumQuantitySold(sales);
-    BigDecimal quantityTaken =
-        procurement == null ? BigDecimal.ZERO : procurement.getQuantityTaken();
-
     return new FarmerDashboardBatchDetailResponse(
         BatchResponse.from(batch),
         FarmResponse.from(farm),
         traceEventRepository.findByBatchIdOrderByEventTimeAsc(batchId).stream()
             .map(TraceEventResponse::from)
             .toList(),
-        priceBreakdownRepository
-            .findByBatchId(batchId)
-            .map(PriceBreakdownResponse::from)
-            .orElse(null),
-        procurement == null ? null : BatchProcurementResponse.from(procurement),
-        sales.stream().map(BatchSaleTransactionResponse::from).toList(),
-        totalQuantitySold,
-        quantityTaken.subtract(totalQuantitySold),
-        sumSaleAmount(sales));
+        batchUsageRepository.findByBatchIdOrderByRecordedAtAsc(batchId).stream()
+            .map(BatchUsageResponse::from).toList());
   }
 
   private Map<UUID, BatchMetrics> loadMetrics(List<Batch> batches) {
     if (batches.isEmpty()) return Map.of();
 
     List<UUID> batchIds = batches.stream().map(Batch::getId).toList();
-    Map<UUID, BatchProcurement> procurements =
-        procurementRepository.findByBatchIdIn(batchIds).stream()
-            .collect(Collectors.toMap(BatchProcurement::getBatchId, Function.identity()));
-    Map<UUID, PriceBreakdown> prices =
-        priceBreakdownRepository.findByBatchIdIn(batchIds).stream()
-            .collect(Collectors.toMap(PriceBreakdown::getBatchId, Function.identity()));
-    Map<UUID, List<BatchSaleTransaction>> sales =
-        saleTransactionRepository.findByBatchIdInOrderBySoldAtAsc(batchIds).stream()
-            .collect(Collectors.groupingBy(BatchSaleTransaction::getBatchId));
+    Map<UUID, List<BatchUsage>> usages =
+        batchUsageRepository.findByBatchIdInOrderByRecordedAtAsc(batchIds).stream()
+            .collect(Collectors.groupingBy(BatchUsage::getBatchId));
     Map<UUID, List<TraceEvent>> traces =
         traceEventRepository.findByBatchIdInOrderByEventTimeAsc(batchIds).stream()
             .collect(Collectors.groupingBy(TraceEvent::getBatchId));
 
     Map<UUID, BatchMetrics> result = new HashMap<>();
     for (Batch batch : batches) {
-      List<BatchSaleTransaction> batchSales = sales.getOrDefault(batch.getId(), List.of());
+      List<BatchUsage> batchUsages = usages.getOrDefault(batch.getId(), List.of());
       List<TraceEvent> batchTraces = traces.getOrDefault(batch.getId(), List.of());
       result.put(
           batch.getId(),
           new BatchMetrics(
-              procurements.get(batch.getId()),
-              prices.get(batch.getId()),
-              batchSales,
+              batchUsages,
               batchTraces.isEmpty() ? null : batchTraces.getLast(),
-              sumQuantitySold(batchSales),
-              sumSaleAmount(batchSales)));
+              sumUsageSaleAmount(batchUsages)));
     }
     return result;
   }
 
   private FarmerDashboardWorkBatchResponse toWorkBatchResponse(
       Batch batch, BatchMetrics metrics) {
-    BigDecimal produced = zeroIfNull(batch.getQuantity());
-    BigDecimal sold = metrics.totalQuantitySold();
-    BigDecimal remaining = produced.subtract(sold).max(BigDecimal.ZERO);
-    BatchProcurement procurement = metrics.procurement();
-    PriceBreakdown price = metrics.price();
+    BigDecimal produced = zeroIfNull(batch.getQuantityReceived());
+    BigDecimal sold = zeroIfNull(batch.getQuantitySold());
+    BigDecimal remaining = zeroIfNull(batch.getQuantityAvailable());
 
     return new FarmerDashboardWorkBatchResponse(
         batch.getId(),
@@ -211,19 +173,17 @@ public class FarmerDashboardService {
         produced,
         sold,
         remaining,
-        procurement == null ? (price == null ? null : price.getFarmerPrice()) : procurement.getFarmerPricePerUnit(),
-        price == null ? null : price.getConsumerPrice(),
-        procurement == null ? null : procurement.getFarmerAmountPayable(),
-        procurement == null ? null : procurement.getPaymentStatus(),
+        batch.getFarmerPricePerUnit(),
+        batch.getConsumerPricePerUnit(),
+        batch.getTotalFarmerAmount(),
+        batch.getPaymentStatus(),
         metrics.totalSaleAmount(),
         lastUpdated(batch, metrics));
   }
 
   private FarmerDashboardBatchResponse toLegacyBatchResponse(
       Batch batch, Farm farm, BatchMetrics metrics) {
-    BatchProcurement procurement = metrics.procurement();
-    BigDecimal quantityTaken =
-        procurement == null ? BigDecimal.ZERO : procurement.getQuantityTaken();
+    BigDecimal quantityTaken = zeroIfNull(batch.getQuantityReceived());
     return new FarmerDashboardBatchResponse(
         batch.getId(),
         batch.getBatchCode(),
@@ -235,24 +195,22 @@ public class FarmerDashboardService {
         batch.getStatus(),
         batch.getHarvestDate(),
         metrics.latestTrace() == null ? null : metrics.latestTrace().getEventType(),
-        procurement == null ? null : procurement.getFarmerPricePerUnit(),
-        procurement == null ? null : procurement.getFarmerAmountPayable(),
-        procurement == null ? null : procurement.getPaymentStatus(),
-        metrics.totalQuantitySold(),
-        quantityTaken.subtract(metrics.totalQuantitySold()),
+        batch.getFarmerPricePerUnit(),
+        batch.getTotalFarmerAmount(),
+        batch.getPaymentStatus(),
+        zeroIfNull(batch.getQuantitySold()),
+        zeroIfNull(batch.getQuantityAvailable()),
         metrics.totalSaleAmount(),
-        procurement == null ? null : procurement.getCurrency());
+        "INR");
   }
 
   private LocalDateTime lastUpdated(Batch batch, BatchMetrics metrics) {
     return latest(
         Arrays.asList(
             batch.getUpdatedAt(),
-            metrics.procurement() == null ? null : metrics.procurement().getUpdatedAt(),
-            metrics.price() == null ? null : metrics.price().getUpdatedAt(),
             metrics.latestTrace() == null ? null : metrics.latestTrace().getCreatedAt(),
-            metrics.sales().stream()
-                .map(BatchSaleTransaction::getCreatedAt)
+            metrics.usages().stream()
+                .map(BatchUsage::getUpdatedAt)
                 .filter(Objects::nonNull)
                 .max(Comparator.naturalOrder())
                 .orElse(null)));
@@ -273,15 +231,10 @@ public class FarmerDashboardService {
     return values.stream().filter(Objects::nonNull).max(Comparator.naturalOrder()).orElse(null);
   }
 
-  private BigDecimal sumQuantitySold(List<BatchSaleTransaction> sales) {
-    return sales.stream()
-        .map(BatchSaleTransaction::getQuantitySold)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
-  private BigDecimal sumSaleAmount(List<BatchSaleTransaction> sales) {
-    return sales.stream()
-        .map(BatchSaleTransaction::getSaleAmount)
+  private BigDecimal sumUsageSaleAmount(List<BatchUsage> usages) {
+    return usages.stream()
+        .filter(usage -> usage.getUsageType().isSale() && usage.getPricePerUnit() != null)
+        .map(usage -> usage.getQuantity().multiply(usage.getPricePerUnit()))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
@@ -318,10 +271,7 @@ public class FarmerDashboardService {
   }
 
   private record BatchMetrics(
-      BatchProcurement procurement,
-      PriceBreakdown price,
-      List<BatchSaleTransaction> sales,
+      List<BatchUsage> usages,
       TraceEvent latestTrace,
-      BigDecimal totalQuantitySold,
       BigDecimal totalSaleAmount) {}
 }

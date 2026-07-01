@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Deprecated
 public class PriceBreakdownController {
 
   private final PriceBreakdownService priceBreakdownService;
