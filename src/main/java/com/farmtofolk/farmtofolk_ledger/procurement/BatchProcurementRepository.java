@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+@Deprecated
 public interface BatchProcurementRepository extends JpaRepository<BatchProcurement, UUID> {
   Optional<BatchProcurement> findByBatchId(UUID batchId);
 

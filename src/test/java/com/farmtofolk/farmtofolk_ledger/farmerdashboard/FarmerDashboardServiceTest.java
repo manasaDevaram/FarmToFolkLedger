@@ -32,6 +32,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
+import com.farmtofolk.farmtofolk_ledger.batchusage.*;
 import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +46,7 @@ class FarmerDashboardServiceTest {
   @Mock PriceBreakdownRepository priceBreakdownRepository;
   @Mock BatchProcurementRepository procurementRepository;
   @Mock BatchSaleTransactionRepository saleTransactionRepository;
+  @Mock BatchUsageRepository batchUsageRepository;
   @Mock StorageService storageService;
 
   @Test
@@ -66,17 +68,19 @@ class FarmerDashboardServiceTest {
     when(batch.getCropName()).thenReturn("Tomato");
     when(batch.getStatus()).thenReturn("ACTIVE");
     when(batch.getUnit()).thenReturn("kg");
+    when(batch.getQuantityReceived()).thenReturn(new BigDecimal("100"));
+    when(batch.getQuantitySold()).thenReturn(new BigDecimal("40"));
+    when(batch.getQuantityAvailable()).thenReturn(new BigDecimal("60"));
+    when(batch.getFarmerPricePerUnit()).thenReturn(new BigDecimal("40"));
+    when(batch.getTotalFarmerAmount()).thenReturn(new BigDecimal("4000"));
+    when(batch.getPaymentStatus()).thenReturn(PaymentStatus.UNPAID);
     when(farmRepository.findAllById(org.mockito.ArgumentMatchers.<Iterable<UUID>>any()))
         .thenReturn(List.of(farm));
     when(farm.getId()).thenReturn(farmId);
     when(traceEventRepository.findByBatchIdInOrderByEventTimeAsc(org.mockito.ArgumentMatchers.any()))
         .thenReturn(List.of());
-    when(priceBreakdownRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(List.of());
-    when(procurementRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(List.of(procurement(batchId, "100", "40")));
-    when(saleTransactionRepository.findByBatchIdInOrderBySoldAtAsc(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(List.of(sale(batchId, "25", "70"), sale(batchId, "15", "80")));
+    when(batchUsageRepository.findByBatchIdInOrderByRecordedAtAsc(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of(usage(batchId, "25", "70"), usage(batchId, "15", "80")));
 
     FarmerDashboardBatchResponse response = service().getBatches(farmerId).getFirst();
 
@@ -124,15 +128,14 @@ class FarmerDashboardServiceTest {
     when(farm.getId()).thenReturn(farmId);
     when(batch.getId()).thenReturn(batchId);
     when(batch.getFarmId()).thenReturn(farmId);
-    when(batch.getQuantity()).thenReturn(new BigDecimal("80"));
+    when(batch.getQuantityReceived()).thenReturn(new BigDecimal("80"));
+    when(batch.getQuantitySold()).thenReturn(new BigDecimal("20"));
+    when(batch.getQuantityAvailable()).thenReturn(new BigDecimal("60"));
+    when(batch.getConsumerPricePerUnit()).thenReturn(new BigDecimal("75"));
     when(farmRepository.findByFarmerId(farmerId)).thenReturn(List.of(farm));
     when(batchRepository.findByFarmerId(farmerId)).thenReturn(List.of(batch));
-    when(procurementRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(List.of(procurement(batchId, "60", "40")));
-    when(priceBreakdownRepository.findByBatchIdIn(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(List.of(price(batchId, "75")));
-    when(saleTransactionRepository.findByBatchIdInOrderBySoldAtAsc(org.mockito.ArgumentMatchers.any()))
-        .thenReturn(List.of(sale(batchId, "20", "70")));
+    when(batchUsageRepository.findByBatchIdInOrderByRecordedAtAsc(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(List.of(usage(batchId, "20", "70")));
     when(traceEventRepository.findByBatchIdInOrderByEventTimeAsc(org.mockito.ArgumentMatchers.any()))
         .thenReturn(List.of());
 
@@ -153,9 +156,7 @@ class FarmerDashboardServiceTest {
         farmRepository,
         batchRepository,
         traceEventRepository,
-        priceBreakdownRepository,
-        procurementRepository,
-        saleTransactionRepository,
+        batchUsageRepository,
         storageService);
   }
 
@@ -176,6 +177,15 @@ class FarmerDashboardServiceTest {
     sale.setSalePricePerUnit(new BigDecimal(price));
     sale.calculateSaleAmount();
     return sale;
+  }
+
+  private BatchUsage usage(UUID batchId, String quantity, String price) {
+    BatchUsage usage = new BatchUsage();
+    usage.setBatchId(batchId);
+    usage.setUsageType(BatchUsageType.SOLD_OFFLINE);
+    usage.setQuantity(new BigDecimal(quantity));
+    usage.setPricePerUnit(new BigDecimal(price));
+    return usage;
   }
 
   private PriceBreakdown price(UUID batchId, String consumerPrice) {

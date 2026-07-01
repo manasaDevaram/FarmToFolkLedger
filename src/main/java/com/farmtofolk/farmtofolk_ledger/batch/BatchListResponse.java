@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
 
 public record BatchListResponse(
     UUID id,
@@ -14,9 +15,19 @@ public record BatchListResponse(
     String farmName,
     String cropName,
     String variety,
-    BigDecimal quantity,
+    BigDecimal quantityReceived,
+    BigDecimal quantitySold,
+    BigDecimal quantityWasted,
+    BigDecimal quantityUsedInProduct,
+    BigDecimal quantityAvailable,
     String unit,
     LocalDate harvestDate,
+    LocalDate receivedDate,
+    BigDecimal farmerPricePerUnit,
+    BigDecimal totalFarmerAmount,
+    PaymentStatus paymentStatus,
+    BigDecimal consumerPricePerUnit,
+    BigDecimal operationalCostPerUnit,
     String status,
     LocalDateTime createdAt,
     LocalDateTime updatedAt) {
@@ -31,9 +42,19 @@ public record BatchListResponse(
         farmName,
         batch.getCropName(),
         batch.getVariety(),
-        batch.getQuantity(),
+        batch.getQuantityReceived(),
+        batch.getQuantitySold(),
+        batch.getQuantityWasted(),
+        batch.getQuantityUsedInProduct(),
+        batch.getQuantityAvailable(),
         batch.getUnit(),
         batch.getHarvestDate(),
+        batch.getReceivedDate(),
+        batch.getFarmerPricePerUnit(),
+        batch.getTotalFarmerAmount(),
+        batch.getPaymentStatus(),
+        batch.getConsumerPricePerUnit(),
+        batch.getOperationalCostPerUnit(),
         batch.getStatus(),
         batch.getCreatedAt(),
         batch.getUpdatedAt());

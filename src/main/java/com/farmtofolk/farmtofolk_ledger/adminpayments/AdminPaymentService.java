@@ -2,6 +2,7 @@ package com.farmtofolk.farmtofolk_ledger.adminpayments;
 
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
+import com.farmtofolk.farmtofolk_ledger.batch.BatchResponse;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
@@ -109,14 +110,18 @@ public class AdminPaymentService {
     return BatchProcurementResponse.from(procurementRepository.save(procurement));
   }
 
+  @Transactional
+  public BatchResponse updateBatchPaymentStatus(UUID batchId, UpdatePaymentStatusRequest request) {
+    Batch batch = batchRepository.findById(batchId)
+        .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+    batch.setPaymentStatus(request.paymentStatus());
+    return BatchResponse.from(batchRepository.save(batch));
+  }
+
   private List<AdminBatchPaymentResponse> loadPayments() {
-    List<BatchProcurement> procurements = procurementRepository.findAll();
-    Map<UUID, Batch> batches =
-        batchRepository
-            .findAllById(
-                procurements.stream().map(BatchProcurement::getBatchId).collect(Collectors.toSet()))
-            .stream()
-            .collect(Collectors.toMap(Batch::getId, Function.identity()));
+    List<Batch> batchList = batchRepository.findAll();
+    Map<UUID, Batch> batches = batchList.stream()
+        .collect(Collectors.toMap(Batch::getId, Function.identity()));
     Map<UUID, Farmer> farmers =
         farmerRepository
             .findAllById(
@@ -131,14 +136,12 @@ public class AdminPaymentService {
             .collect(Collectors.toMap(Farm::getId, Function.identity()));
 
     List<AdminBatchPaymentResponse> payments = new ArrayList<>();
-    for (BatchProcurement procurement : procurements) {
-      Batch batch = batches.get(procurement.getBatchId());
-      if (batch == null) continue;
+    for (Batch batch : batchList) {
       Farmer farmer = farmers.get(batch.getFarmerId());
       Farm farm = farms.get(batch.getFarmId());
       payments.add(
           new AdminBatchPaymentResponse(
-              procurement.getId(),
+              batch.getId(),
               batch.getFarmerId(),
               farmer == null ? null : farmer.getName(),
               farmer == null ? null : farmer.getPhone(),
@@ -147,13 +150,13 @@ public class AdminPaymentService {
               batch.getId(),
               batch.getBatchCode(),
               batch.getCropName(),
-              procurement.getQuantityTaken(),
+              batch.getQuantityReceived(),
               batch.getUnit(),
-              procurement.getFarmerPricePerUnit(),
-              procurement.getFarmerAmountPayable(),
-              procurement.getPaymentStatus(),
-              procurement.getCurrency(),
-              procurement.getProcuredAt()));
+              batch.getFarmerPricePerUnit(),
+              batch.getTotalFarmerAmount(),
+              batch.getPaymentStatus(),
+              "INR",
+              batch.getReceivedDate() == null ? null : batch.getReceivedDate().atStartOfDay()));
     }
     return payments.stream()
         .sorted(

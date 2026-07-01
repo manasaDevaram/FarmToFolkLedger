@@ -14,6 +14,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "price_breakdowns")
+@Deprecated
 public class PriceBreakdown {
 
   @Id

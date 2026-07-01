@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
+@Deprecated
 public class BatchSaleTransactionService {
 
   private final BatchSaleTransactionRepository saleTransactionRepository;

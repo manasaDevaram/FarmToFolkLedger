@@ -12,17 +12,9 @@ import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerResponse;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaRepository;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurement;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementRepository;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementResponse;
 import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransaction;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransactionRepository;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransactionResponse;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerification;
@@ -31,12 +23,14 @@ import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
+import com.farmtofolk.farmtofolk_ledger.batchusage.BatchUsage;
+import com.farmtofolk.farmtofolk_ledger.batchusage.BatchUsageRepository;
+import com.farmtofolk.farmtofolk_ledger.batchusage.BatchUsageResponse;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.time.LocalDate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,12 +43,10 @@ public class AdminOverviewService {
     private final FarmerRepository farmerRepository;
     private final FarmRepository farmRepository;
     private final BatchRepository batchRepository;
-    private final BatchProcurementRepository procurementRepository;
-    private final BatchSaleTransactionRepository saleTransactionRepository;
+    private final BatchUsageRepository batchUsageRepository;
     private final FarmMediaRepository farmMediaRepository;
     private final FarmVerificationRepository farmVerificationRepository;
     private final VerificationEvidenceRepository verificationEvidenceRepository;
-    private final PriceBreakdownRepository priceBreakdownRepository;
     private final TraceEventRepository traceEventRepository;
     private final QrCodeRepository qrCodeRepository;
     private final StorageService storageService;
@@ -63,24 +55,20 @@ public class AdminOverviewService {
             FarmerRepository farmerRepository,
             FarmRepository farmRepository,
             BatchRepository batchRepository,
-            BatchProcurementRepository procurementRepository,
-            BatchSaleTransactionRepository saleTransactionRepository,
+            BatchUsageRepository batchUsageRepository,
             FarmMediaRepository farmMediaRepository,
             FarmVerificationRepository farmVerificationRepository,
             VerificationEvidenceRepository verificationEvidenceRepository,
-            PriceBreakdownRepository priceBreakdownRepository,
             TraceEventRepository traceEventRepository,
             QrCodeRepository qrCodeRepository,
             StorageService storageService) {
         this.farmerRepository = farmerRepository;
         this.farmRepository = farmRepository;
         this.batchRepository = batchRepository;
-        this.procurementRepository = procurementRepository;
-        this.saleTransactionRepository = saleTransactionRepository;
+        this.batchUsageRepository = batchUsageRepository;
         this.farmMediaRepository = farmMediaRepository;
         this.farmVerificationRepository = farmVerificationRepository;
         this.verificationEvidenceRepository = verificationEvidenceRepository;
-        this.priceBreakdownRepository = priceBreakdownRepository;
         this.traceEventRepository = traceEventRepository;
         this.qrCodeRepository = qrCodeRepository;
         this.storageService = storageService;
@@ -94,14 +82,14 @@ public class AdminOverviewService {
         long totalBatches = batchRepository.count();
         long totalQrCodes = qrCodeRepository.count();
 
-        // Pending payments: aggregate over procurements with UNPAID status.
-        List<BatchProcurement> allProcurements = procurementRepository.findAll();
-        BigDecimal pendingPaymentsAmount = allProcurements.stream()
-                .filter(p -> PaymentStatus.UNPAID == p.getPaymentStatus())
-                .map(p -> p.getFarmerAmountPayable() == null ? BigDecimal.ZERO : p.getFarmerAmountPayable())
+        // Compatibility summary now reads the central Batch payment snapshot.
+        List<Batch> allBatches = batchRepository.findAll();
+        BigDecimal pendingPaymentsAmount = allBatches.stream()
+                .filter(batch -> PaymentStatus.UNPAID == batch.getPaymentStatus())
+                .map(batch -> zero(batch.getTotalFarmerAmount()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        long pendingPaymentBatchCount = allProcurements.stream()
-                .filter(p -> PaymentStatus.UNPAID == p.getPaymentStatus())
+        long pendingPaymentBatchCount = allBatches.stream()
+                .filter(batch -> PaymentStatus.UNPAID == batch.getPaymentStatus())
                 .count();
 
         // Recent verifications: load last 5 across all farms.
@@ -129,6 +117,76 @@ public class AdminOverviewService {
                 totalQrCodes);
     }
 
+    public AdminDashboardResponse getDashboard() {
+        List<Batch> batches = batchRepository.findAll();
+        List<FarmVerification> verifications = farmVerificationRepository.findAll();
+        BigDecimal pendingAmount = getPendingPaymentBatches(batches).stream()
+                .map(batch -> zero(batch.getTotalFarmerAmount()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long pendingVerifications = verifications.stream().filter(this::isPendingVerification).count();
+        long upcomingVerifications = verifications.stream().filter(this::isUpcomingVerification).count();
+        return new AdminDashboardResponse(
+                new AdminDashboardResponse.Payments(pendingAmount, getPendingPaymentBatches(batches).size()),
+                new AdminDashboardResponse.Verifications(pendingVerifications, upcomingVerifications),
+                new AdminDashboardResponse.Inventory(
+                        sum(batches, Batch::getQuantityAvailable),
+                        sum(batches, Batch::getQuantitySold),
+                        sum(batches, Batch::getQuantityWasted)),
+                new AdminDashboardResponse.SecondaryCounts(
+                        farmerRepository.count(), farmRepository.count(), batchRepository.count()));
+    }
+
+    public List<BatchResponse> getPendingPayments() {
+        return getPendingPaymentBatches(batchRepository.findAll()).stream().map(BatchResponse::from).toList();
+    }
+
+    public List<FarmVerificationResponse> getPendingVerifications() {
+        return farmVerificationRepository.findAll().stream().filter(this::isPendingVerification)
+                .map(FarmVerificationResponse::from).toList();
+    }
+
+    public List<FarmVerificationResponse> getUpcomingVerifications() {
+        return farmVerificationRepository.findAll().stream().filter(this::isUpcomingVerification)
+                .sorted(java.util.Comparator.comparing(FarmVerification::getNextVerificationDue))
+                .map(FarmVerificationResponse::from).toList();
+    }
+
+    public List<BatchResponse> getBatchInventory() {
+        return batchRepository.findAll().stream().map(BatchResponse::from).toList();
+    }
+
+    public List<BatchResponse> getHighWastageBatches() {
+        return batchRepository.findAll().stream()
+                .filter(batch -> zero(batch.getQuantityWasted()).signum() > 0)
+                .sorted(java.util.Comparator.comparing(this::wastageRatio).reversed())
+                .map(BatchResponse::from).toList();
+    }
+
+    private List<Batch> getPendingPaymentBatches(List<Batch> batches) {
+        return batches.stream().filter(batch -> PaymentStatus.UNPAID == batch.getPaymentStatus()).toList();
+    }
+
+    private boolean isPendingVerification(FarmVerification verification) {
+        return verification.getStatus() != null && verification.getStatus().equalsIgnoreCase("PENDING");
+    }
+
+    private boolean isUpcomingVerification(FarmVerification verification) {
+        return verification.getNextVerificationDue() != null
+                && !verification.getNextVerificationDue().isBefore(LocalDate.now());
+    }
+
+    private BigDecimal sum(List<Batch> batches, Function<Batch, BigDecimal> getter) {
+        return batches.stream().map(getter).map(this::zero).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
+
+    private BigDecimal wastageRatio(Batch batch) {
+        BigDecimal received = zero(batch.getQuantityReceived());
+        return received.signum() == 0 ? BigDecimal.ZERO
+                : zero(batch.getQuantityWasted()).divide(received, 6, java.math.RoundingMode.HALF_UP);
+    }
+
     public AdminFarmerOverviewResponse getFarmerOverview(UUID farmerId) {
         Farmer farmer = farmerRepository
                 .findById(farmerId)
@@ -137,20 +195,14 @@ public class AdminOverviewService {
         List<Farm> farms = farmRepository.findByFarmerId(farmerId);
         List<Batch> batches = batchRepository.findByFarmerId(farmerId);
 
-        // One procurement per batch – load all in one query and index by batchId.
-        List<UUID> batchIds = batches.stream().map(Batch::getId).toList();
-        Map<UUID, BatchProcurement> procurementsByBatchId = procurementRepository.findAll().stream()
-                .filter(p -> batchIds.contains(p.getBatchId()))
-                .collect(Collectors.toMap(BatchProcurement::getBatchId, Function.identity()));
-
         BigDecimal totalPayable = BigDecimal.ZERO;
         BigDecimal totalPaid = BigDecimal.ZERO;
         BigDecimal totalPending = BigDecimal.ZERO;
 
-        for (BatchProcurement p : procurementsByBatchId.values()) {
-            BigDecimal amount = p.getFarmerAmountPayable() == null ? BigDecimal.ZERO : p.getFarmerAmountPayable();
+        for (Batch batch : batches) {
+            BigDecimal amount = zero(batch.getTotalFarmerAmount());
             totalPayable = totalPayable.add(amount);
-            if (PaymentStatus.PAID == p.getPaymentStatus()) {
+            if (PaymentStatus.PAID == batch.getPaymentStatus()) {
                 totalPaid = totalPaid.add(amount);
             } else {
                 totalPending = totalPending.add(amount);
@@ -213,31 +265,14 @@ public class AdminOverviewService {
                 ? null
                 : farmRepository.findById(batch.getFarmId()).orElse(null);
 
-        BatchProcurementResponse procurement = procurementRepository
-                .findByBatchId(batchId)
-                .map(BatchProcurementResponse::from)
-                .orElse(null);
-
-        List<BatchSaleTransaction> saleTxs = saleTransactionRepository.findByBatchIdOrderBySoldAtAsc(batchId);
-        List<BatchSaleTransactionResponse> saleTransactions = saleTxs.stream().map(BatchSaleTransactionResponse::from)
-                .toList();
-
-        BigDecimal totalSold = saleTxs.stream()
-                .map(t -> t.getQuantitySold() == null ? BigDecimal.ZERO : t.getQuantitySold())
+        List<BatchUsage> usageEntities = batchUsageRepository.findByBatchIdOrderByRecordedAtAsc(batchId);
+        List<BatchUsageResponse> usage = usageEntities.stream().map(BatchUsageResponse::from).toList();
+        BigDecimal totalSaleAmount = usageEntities.stream()
+                .filter(item -> item.getUsageType().isSale() && item.getPricePerUnit() != null)
+                .map(item -> item.getQuantity().multiply(item.getPricePerUnit()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal quantityTaken = procurement == null || procurement.quantityTaken() == null
-                ? BigDecimal.ZERO
-                : procurement.quantityTaken();
-        BigDecimal remaining = quantityTaken.subtract(totalSold);
-        BigDecimal totalSaleAmount = saleTxs.stream()
-                .map(t -> t.getSaleAmount() == null ? BigDecimal.ZERO : t.getSaleAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        AdminBatchSalesSummary salesSummary = new AdminBatchSalesSummary(totalSold, remaining, totalSaleAmount);
-
-        PriceBreakdownResponse priceBreakdown = priceBreakdownRepository
-                .findByBatchId(batchId)
-                .map(PriceBreakdownResponse::from)
-                .orElse(null);
+        AdminBatchSalesSummary salesSummary = new AdminBatchSalesSummary(
+                zero(batch.getQuantitySold()), zero(batch.getQuantityAvailable()), totalSaleAmount);
 
         List<TraceEventResponse> traceEvents = traceEventRepository.findByBatchIdOrderByEventTimeAsc(batchId).stream()
                 .map(TraceEventResponse::from)
@@ -252,10 +287,9 @@ public class AdminOverviewService {
                 BatchResponse.from(batch),
                 farmer == null ? null : FarmerResponse.from(farmer, storageService),
                 farm == null ? null : FarmResponse.from(farm),
-                procurement,
-                saleTransactions,
+                usage,
                 salesSummary,
-                priceBreakdown,
+                batch.getMargin(),
                 traceEvents,
                 qrCode);
     }

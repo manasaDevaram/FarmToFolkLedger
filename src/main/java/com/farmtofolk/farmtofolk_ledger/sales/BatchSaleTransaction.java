@@ -14,6 +14,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "batch_sale_transactions")
+@Deprecated
 public class BatchSaleTransaction {
 
   @Id
