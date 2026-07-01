@@ -1,7 +1,9 @@
 package com.farmtofolk.farmtofolk_ledger.auth;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +36,18 @@ class SecurityAccessTest {
   @Test
   void protectedApiRejectsMissingToken() throws Exception {
     mockMvc.perform(get("/api/farmers")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void productionFrontendCanPreflightLogin() throws Exception {
+    mockMvc
+        .perform(
+            options("/api/auth/login")
+                .header("Origin", "https://app.nammafarmers.in")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "content-type"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", "https://app.nammafarmers.in"));
   }
 
   @Test
