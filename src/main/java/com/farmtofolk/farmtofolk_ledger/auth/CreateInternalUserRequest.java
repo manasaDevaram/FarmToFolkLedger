@@ -14,4 +14,4 @@ public record CreateInternalUserRequest(
         String phone,
     @NotNull UserRole role,
     Boolean active,
-    @JsonAlias("password") @NotBlank @Size(min = 8) String initialPassword) {}
+    @JsonAlias("password") @Size(min = 8) String initialPassword) {}

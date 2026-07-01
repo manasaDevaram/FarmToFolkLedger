@@ -18,6 +18,7 @@ app:
   security:
     jwt-secret: test-secret-must-be-at-least-thirty-two-bytes-long
     jwt-expiration-minutes: 60
+    default-user-password: ChangeMe@123
   bootstrap:
     admin:
       enabled: false

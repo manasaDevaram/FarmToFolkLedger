@@ -96,6 +96,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/admin/**")
                     .hasRole("ADMIN")
+                    .requestMatchers(HttpMethod.PATCH, "/api/users/me/password")
+                    .authenticated()
                     .requestMatchers("/api/farmer-dashboard/**")
                     .hasAnyRole("ADMIN", "FARMER")
                     .requestMatchers(HttpMethod.POST, "/api/batches/*/qr-code")

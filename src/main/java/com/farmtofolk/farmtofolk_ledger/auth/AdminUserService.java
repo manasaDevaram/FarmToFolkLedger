@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,18 +22,23 @@ public class AdminUserService {
 
   private static final Set<UserRole> INTERNAL_ROLES =
       EnumSet.of(UserRole.ADMIN, UserRole.FIELD_OFFICER);
+  private static final Set<UserRole> MANAGED_ROLES = EnumSet.allOf(UserRole.class);
 
   private final UserRepository userRepository;
   private final PasswordEncoder passwordEncoder;
   private final CurrentUserService currentUserService;
+  private final String defaultUserPassword;
 
   public AdminUserService(
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
-      CurrentUserService currentUserService) {
+      CurrentUserService currentUserService,
+      @Value("${app.security.default-user-password:ChangeMe@123}")
+          String defaultUserPassword) {
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
     this.currentUserService = currentUserService;
+    this.defaultUserPassword = defaultUserPassword;
   }
 
   public InternalUserResponse create(CreateInternalUserRequest request) {
@@ -47,13 +53,13 @@ public class AdminUserService {
     user.setPhone(phone);
     user.setRole(request.role());
     user.setActive(request.active() == null || request.active());
-    user.setPasswordHash(passwordEncoder.encode(request.initialPassword()));
+    user.setPasswordHash(passwordEncoder.encode(initialPasswordFor(request)));
     return InternalUserResponse.from(userRepository.save(user));
   }
 
   @Transactional(readOnly = true)
   public List<InternalUserResponse> list() {
-    return userRepository.findByRoleIn(INTERNAL_ROLES).stream()
+    return userRepository.findByRoleIn(MANAGED_ROLES).stream()
         .sorted(
             Comparator.comparing(
                 User::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
@@ -63,7 +69,7 @@ public class AdminUserService {
 
   @Transactional(readOnly = true)
   public InternalUserResponse get(UUID userId) {
-    return InternalUserResponse.from(findInternalUser(userId));
+    return InternalUserResponse.from(findUser(userId));
   }
 
   public InternalUserResponse update(UUID userId, UpdateInternalUserRequest request) {
@@ -98,15 +104,30 @@ public class AdminUserService {
     return InternalUserResponse.from(userRepository.save(user));
   }
 
+  public PasswordChangeResponse resetUserPassword(
+      UUID userId, AdminResetPasswordRequest request) {
+    if (currentUserService.getCurrentUserId().equals(userId)) {
+      throw new BadRequestException("Use change password to update your own password");
+    }
+    UserService.validateMatchingPasswords(request.newPassword(), request.confirmPassword());
+    User user = findUser(userId);
+    user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+    User savedUser = userRepository.save(user);
+    return PasswordChangeResponse.from("Password reset successfully", savedUser);
+  }
+
   private User findInternalUser(UUID userId) {
-    User user =
-        userRepository
-            .findById(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    User user = findUser(userId);
     if (!INTERNAL_ROLES.contains(user.getRole())) {
       throw new ResourceNotFoundException("User not found");
     }
     return user;
+  }
+
+  private User findUser(UUID userId) {
+    return userRepository
+        .findById(userId)
+        .orElseThrow(() -> new ResourceNotFoundException("User not found"));
   }
 
   private void validateInternalRole(UserRole role) {
@@ -141,5 +162,13 @@ public class AdminUserService {
 
   private String normalize(String value) {
     return value == null ? null : value.trim();
+  }
+
+  private String initialPasswordFor(CreateInternalUserRequest request) {
+    if (request.role() != UserRole.ADMIN) return defaultUserPassword;
+    if (request.initialPassword() == null || request.initialPassword().isBlank()) {
+      throw new BadRequestException("Initial password is required for ADMIN users");
+    }
+    return request.initialPassword();
   }
 }

@@ -2,6 +2,7 @@ package com.farmtofolk.farmtofolk_ledger.auth;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -169,6 +170,14 @@ class SecurityAccessTest {
                 .header("Authorization", "Bearer " + jwtService.generateToken(farmer))
                 .contentType("application/json")
                 .content("{}"))
+        .andExpect(status().isForbidden());
+    mockMvc
+        .perform(
+            patch("/api/admin/users/{userId}/password", farmer.getId())
+                .header("Authorization", "Bearer " + jwtService.generateToken(farmer))
+                .contentType("application/json")
+                .content(
+                    "{\"newPassword\":\"ResetPassword@2\",\"confirmPassword\":\"ResetPassword@2\"}"))
         .andExpect(status().isForbidden());
   }
 }

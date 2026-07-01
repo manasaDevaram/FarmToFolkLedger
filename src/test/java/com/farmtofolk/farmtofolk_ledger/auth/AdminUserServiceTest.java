@@ -12,6 +12,8 @@ import static org.mockito.Mockito.when;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,12 +33,15 @@ class AdminUserServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new AdminUserService(userRepository, passwordEncoder, currentUserService);
+    service =
+        new AdminUserService(
+            userRepository, passwordEncoder, currentUserService, "ChangeMe@123");
   }
 
   @Test
   void createsAdminAndFieldOfficerWithoutExposingPassword() {
     when(passwordEncoder.encode("temporary123")).thenReturn("encoded");
+    when(passwordEncoder.encode("ChangeMe@123")).thenReturn("default-encoded");
     when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
     for (UserRole role : List.of(UserRole.ADMIN, UserRole.FIELD_OFFICER)) {
@@ -55,7 +60,8 @@ class AdminUserServiceTest {
 
     ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
     verify(userRepository, org.mockito.Mockito.times(2)).save(captor.capture());
-    assertTrue(captor.getAllValues().stream().allMatch(user -> "encoded".equals(user.getPasswordHash())));
+    assertEquals("encoded", captor.getAllValues().getFirst().getPasswordHash());
+    assertEquals("default-encoded", captor.getAllValues().getLast().getPasswordHash());
   }
 
   @Test
@@ -92,8 +98,8 @@ class AdminUserServiceTest {
     assertEquals(List.of(UserRole.ADMIN, UserRole.FIELD_OFFICER), responses.stream().map(InternalUserResponse::role).toList());
     ArgumentCaptor<java.util.Collection<UserRole>> roles = ArgumentCaptor.forClass(java.util.Collection.class);
     verify(userRepository).findByRoleIn(roles.capture());
-    assertEquals(2, roles.getValue().size());
-    assertFalse(roles.getValue().contains(UserRole.FARMER));
+    assertEquals(3, roles.getValue().size());
+    assertTrue(roles.getValue().contains(UserRole.FARMER));
   }
 
   @Test
@@ -114,6 +120,41 @@ class AdminUserServiceTest {
 
     assertEquals("You cannot change your own role/status", roleException.getMessage());
     assertEquals("You cannot change your own role/status", statusException.getMessage());
+    verify(userRepository, never()).findById(any());
+  }
+
+  @Test
+  void adminResetsAnotherUsersPasswordUsingHash() {
+    UUID adminId = UUID.randomUUID();
+    UUID farmerId = UUID.randomUUID();
+    User farmer = user("Farmer", UserRole.FARMER);
+    when(currentUserService.getCurrentUserId()).thenReturn(adminId);
+    when(userRepository.findById(farmerId)).thenReturn(Optional.of(farmer));
+    when(passwordEncoder.encode("ResetPassword@2")).thenReturn("reset-hash");
+    when(userRepository.save(farmer)).thenReturn(farmer);
+
+    PasswordChangeResponse response =
+        service.resetUserPassword(
+            farmerId, new AdminResetPasswordRequest("ResetPassword@2", "ResetPassword@2"));
+
+    assertEquals("reset-hash", farmer.getPasswordHash());
+    assertEquals("Password reset successfully", response.message());
+  }
+
+  @Test
+  void adminCannotResetOwnPasswordThroughAdminEndpoint() {
+    UUID adminId = UUID.randomUUID();
+    when(currentUserService.getCurrentUserId()).thenReturn(adminId);
+
+    BadRequestException exception =
+        assertThrows(
+            BadRequestException.class,
+            () ->
+                service.resetUserPassword(
+                    adminId,
+                    new AdminResetPasswordRequest("ResetPassword@2", "ResetPassword@2")));
+
+    assertEquals("Use change password to update your own password", exception.getMessage());
     verify(userRepository, never()).findById(any());
   }
 
