@@ -1,5 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.farmer;
 
+import com.farmtofolk.farmtofolk_ledger.auth.User;
+import com.farmtofolk.farmtofolk_ledger.auth.UserRepository;
+import com.farmtofolk.farmtofolk_ledger.auth.UserRole;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
@@ -10,6 +13,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -29,17 +34,27 @@ public class FarmerService {
   private final StorageService storageService;
   private final AfterCommitExecutor afterCommitExecutor;
   private final TransactionTemplate transactionTemplate;
+  private final UserRepository userRepository;
+  private final PasswordEncoder passwordEncoder;
+  private final String defaultUserPassword;
 
   public FarmerService(
       FarmerRepository farmerRepository,
       PublicTraceCacheService publicTraceCacheService,
       StorageService storageService,
       AfterCommitExecutor afterCommitExecutor,
-      PlatformTransactionManager transactionManager) {
+      PlatformTransactionManager transactionManager,
+      UserRepository userRepository,
+      PasswordEncoder passwordEncoder,
+      @Value("${app.security.default-user-password:ChangeMe@123}")
+          String defaultUserPassword) {
     this.farmerRepository = farmerRepository;
     this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
     this.afterCommitExecutor = afterCommitExecutor;
+    this.userRepository = userRepository;
+    this.passwordEncoder = passwordEncoder;
+    this.defaultUserPassword = defaultUserPassword;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.transactionTemplate.setPropagationBehavior(
         TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -54,8 +69,20 @@ public class FarmerService {
       farmer.setFarmerCode(generateFarmerCode());
     }
     validateUniqueFields(farmer.getFarmerCode(), farmer.getPhone(), null);
+    if (userRepository.existsByPhone(farmer.getPhone())) {
+      throw new ConflictException("Farmer phone already has a user account");
+    }
 
-    // Save the farmer and return API-friendly response data.
+    User user = new User();
+    user.setName(farmer.getName());
+    user.setPhone(farmer.getPhone());
+    user.setRole(UserRole.FARMER);
+    user.setActive(true);
+    user.setPasswordHash(passwordEncoder.encode(defaultUserPassword));
+    User savedUser = userRepository.save(user);
+    farmer.setUserId(savedUser.getId());
+
+    // Farmer and login account are committed atomically.
     Farmer savedFarmer = farmerRepository.save(farmer);
     return FarmerResponse.from(savedFarmer);
   }
@@ -103,6 +130,7 @@ public class FarmerService {
     Farmer farmer = findFarmer(farmerId);
     applyRequest(farmer, request);
     validateUniqueFields(farmer.getFarmerCode(), farmer.getPhone(), farmerId);
+    syncLinkedUser(farmer);
 
     Farmer savedFarmer = farmerRepository.save(farmer);
     // Clear QR page stable data because farmer details changed.
@@ -115,6 +143,9 @@ public class FarmerService {
     // Load the farmer and update only the active status.
     Farmer farmer = findFarmer(farmerId);
     farmer.setActive(request.active());
+    if (farmer.getUserId() != null) {
+      userRepository.findById(farmer.getUserId()).ifPresent(user -> user.setActive(request.active()));
+    }
 
     Farmer savedFarmer = farmerRepository.save(farmer);
     // Clear QR page stable data because farmer status changed.
@@ -175,6 +206,19 @@ public class FarmerService {
             ? farmerRepository.existsByPhone(phone)
             : farmerRepository.existsByPhoneAndIdNot(phone, farmerId);
     if (duplicatePhone) throw new ConflictException("Farmer phone already exists");
+  }
+
+  private void syncLinkedUser(Farmer farmer) {
+    if (farmer.getUserId() == null) return;
+    User user =
+        userRepository
+            .findById(farmer.getUserId())
+            .orElseThrow(() -> new ResourceNotFoundException("Linked user not found"));
+    if (userRepository.existsByPhoneAndIdNot(farmer.getPhone(), user.getId())) {
+      throw new ConflictException("Farmer phone already has a user account");
+    }
+    user.setName(farmer.getName());
+    user.setPhone(farmer.getPhone());
   }
 
   private FarmerResponse saveUploadedFarmerFile(

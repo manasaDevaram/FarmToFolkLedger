@@ -58,4 +58,10 @@ public class AdminUserController {
       @PathVariable UUID userId, @Valid @RequestBody UpdateUserStatusRequest request) {
     return adminUserService.updateStatus(userId, request);
   }
+
+  @PatchMapping("/{userId}/password")
+  public PasswordChangeResponse resetPassword(
+      @PathVariable UUID userId, @Valid @RequestBody AdminResetPasswordRequest request) {
+    return adminUserService.resetUserPassword(userId, request);
+  }
 }

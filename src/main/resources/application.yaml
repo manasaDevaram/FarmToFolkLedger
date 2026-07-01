@@ -44,6 +44,7 @@ app:
   security:
     jwt-secret: ${JWT_SECRET:change-this-development-secret-to-at-least-32-bytes}
     jwt-expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+    default-user-password: ${DEFAULT_USER_PASSWORD:ChangeMe@123}
   bootstrap:
     admin:
       enabled: ${BOOTSTRAP_ADMIN_ENABLED:false}
