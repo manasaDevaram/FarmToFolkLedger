@@ -12,7 +12,10 @@ public class WebConfig implements WebMvcConfigurer {
     registry
         .addMapping("/api/**")
         .allowedOrigins(
-            "http://localhost:3000", "http://localhost:5173", "https://farmtofolk-web.vercel.app")
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "https://farmtofolk-web.vercel.app",
+            "https://app.nammafarmers.in")
         .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         .allowedHeaders("Content-Type", "Authorization");
   }
