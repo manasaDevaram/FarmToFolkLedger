@@ -234,8 +234,6 @@ public class FarmerDashboardService {
         batch.getUnit(),
         batch.getStatus(),
         batch.getHarvestDate(),
-        batch.getPackedDate(),
-        batch.getBestBeforeDate(),
         metrics.latestTrace() == null ? null : metrics.latestTrace().getEventType(),
         procurement == null ? null : procurement.getFarmerPricePerUnit(),
         procurement == null ? null : procurement.getFarmerAmountPayable(),

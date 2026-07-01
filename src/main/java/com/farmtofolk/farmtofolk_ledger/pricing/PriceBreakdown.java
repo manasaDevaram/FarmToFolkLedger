@@ -29,17 +29,8 @@ public class PriceBreakdown {
   @Column(name = "farmer_price")
   private BigDecimal farmerPrice;
 
-  @Column(name = "transport_cost")
-  private BigDecimal transportCost;
-
-  @Column(name = "packing_cost")
-  private BigDecimal packingCost;
-
-  @Column(name = "organization_cost")
-  private BigDecimal organizationCost;
-
-  @Column(name = "platform_cost")
-  private BigDecimal platformCost;
+  @Column(name = "operational_cost", precision = 19, scale = 2)
+  private BigDecimal operationalCost;
 
   private String currency = "INR";
 
@@ -92,36 +83,16 @@ public class PriceBreakdown {
     this.farmerPrice = farmerPrice;
   }
 
-  public BigDecimal getTransportCost() {
-    return transportCost;
+  public BigDecimal getOperationalCost() {
+    return operationalCost;
   }
 
-  public void setTransportCost(BigDecimal transportCost) {
-    this.transportCost = transportCost;
+  public void setOperationalCost(BigDecimal operationalCost) {
+    this.operationalCost = operationalCost;
   }
 
-  public BigDecimal getPackingCost() {
-    return packingCost;
-  }
-
-  public void setPackingCost(BigDecimal packingCost) {
-    this.packingCost = packingCost;
-  }
-
-  public BigDecimal getOrganizationCost() {
-    return organizationCost;
-  }
-
-  public void setOrganizationCost(BigDecimal organizationCost) {
-    this.organizationCost = organizationCost;
-  }
-
-  public BigDecimal getPlatformCost() {
-    return platformCost;
-  }
-
-  public void setPlatformCost(BigDecimal platformCost) {
-    this.platformCost = platformCost;
+  public BigDecimal getMargin() {
+    return consumerPrice.subtract(farmerPrice).subtract(operationalCost);
   }
 
   public String getCurrency() {

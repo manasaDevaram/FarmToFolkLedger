@@ -15,8 +15,6 @@ public record FarmerDashboardBatchResponse(
     String unit,
     String batchStatus,
     LocalDate harvestDate,
-    LocalDate packedDate,
-    LocalDate bestBeforeDate,
     String latestTraceStatus,
     BigDecimal farmerPricePerUnit,
     BigDecimal farmerAmountPayable,

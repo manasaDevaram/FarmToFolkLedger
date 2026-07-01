@@ -160,8 +160,6 @@ create_or_get_batch() {
   local quantity="$6"
   local unit="$7"
   local harvest_date="$8"
-  local packed_date="$9"
-  local best_before_date="${10}"
   local existing_id
   local payload
 
@@ -180,8 +178,6 @@ create_or_get_batch() {
     --arg variety "$variety" \
     --arg unit "$unit" \
     --arg harvestDate "$harvest_date" \
-    --arg packedDate "$packed_date" \
-    --arg bestBeforeDate "$best_before_date" \
     --arg status "READY_FOR_SALE" \
     --argjson quantity "$quantity" \
     '{
@@ -193,8 +189,6 @@ create_or_get_batch() {
       quantity: $quantity,
       unit: $unit,
       harvestDate: $harvestDate,
-      packedDate: $packedDate,
-      bestBeforeDate: $bestBeforeDate,
       status: $status
     }')"
 
@@ -251,17 +245,13 @@ upsert_price_breakdown() {
     --arg priceUnit "per kg" \
     --argjson consumerPrice "$consumer_price" \
     --argjson farmerPrice "$farmer_price" \
-    --argjson transportCost "$logistics" \
-    --argjson packingCost 0 \
-    --argjson organizationCost "$retail_margin" \
-    --argjson platformCost "$platform_fee" \
+    --argjson logistics "$logistics" \
+    --argjson retailMargin "$retail_margin" \
+    --argjson platformFee "$platform_fee" \
     '{
       consumerPrice: $consumerPrice,
       farmerPrice: $farmerPrice,
-      transportCost: $transportCost,
-      packingCost: $packingCost,
-      organizationCost: $organizationCost,
-      platformCost: $platformCost,
+      operationalCost: ($logistics + $retailMargin + $platformFee),
       currency: $currency,
       priceUnit: $priceUnit
     }')"
@@ -365,10 +355,10 @@ farm1_id="$(create_or_get_farm "$farmer1_id" "Nanjangud Natural Farm" "Hullahall
 farm2_id="$(create_or_get_farm "$farmer2_id" "Hunsur Agroecology Farm" "Bilikere" "Mysuru" "Karnataka" 12.3036 76.2916 4.2 "Agroecology")"
 farm3_id="$(create_or_get_farm "$farmer3_id" "Mandya Mixed Crop Farm" "Maddur" "Mandya" "Karnataka" 12.5839 77.0451 6.8 "Mixed Crop Natural Farming")"
 
-tomato_batch_id="$(create_or_get_batch "$farmer1_id" "$farm1_id" "DEMO-BATCH-TOMATO-20260624" "Nati Tomato" "Local Nati" 250 "kg" "2026-06-24" "2026-06-24" "2026-06-30")"
-onion_batch_id="$(create_or_get_batch "$farmer2_id" "$farm2_id" "DEMO-BATCH-ONION-20260622" "Red Onion" "Local Red" 400 "kg" "2026-06-22" "2026-06-22" "2026-07-22")"
-rice_batch_id="$(create_or_get_batch "$farmer3_id" "$farm3_id" "DEMO-BATCH-RICE-20260615" "Sona Masoori Rice" "Sona Masoori" 800 "kg" "2026-06-15" "2026-06-16" "2026-12-15")"
-toor_batch_id="$(create_or_get_batch "$farmer3_id" "$farm3_id" "DEMO-BATCH-TOOR-20260618" "Toor Dal" "Local Toor" 300 "kg" "2026-06-18" "2026-06-19" "2026-12-18")"
+tomato_batch_id="$(create_or_get_batch "$farmer1_id" "$farm1_id" "DEMO-BATCH-TOMATO-20260624" "Nati Tomato" "Local Nati" 250 "kg" "2026-06-24")"
+onion_batch_id="$(create_or_get_batch "$farmer2_id" "$farm2_id" "DEMO-BATCH-ONION-20260622" "Red Onion" "Local Red" 400 "kg" "2026-06-22")"
+rice_batch_id="$(create_or_get_batch "$farmer3_id" "$farm3_id" "DEMO-BATCH-RICE-20260615" "Sona Masoori Rice" "Sona Masoori" 800 "kg" "2026-06-15")"
+toor_batch_id="$(create_or_get_batch "$farmer3_id" "$farm3_id" "DEMO-BATCH-TOOR-20260618" "Toor Dal" "Local Toor" 300 "kg" "2026-06-18")"
 
 verification1_id="$(create_or_get_verification "$farm1_id" "Verified Agroecology Practices" "2026-06-01" "Farm follows natural soil nutrition practices and avoids synthetic chemical inputs.")"
 verification2_id="$(create_or_get_verification "$farm2_id" "Verified Agroecology Practices" "2026-06-01" "Farm uses crop rotation, composting, and low-input pest management practices.")"

@@ -42,12 +42,6 @@ public class Batch {
   @Column(name = "harvest_date")
   private LocalDate harvestDate;
 
-  @Column(name = "packed_date")
-  private LocalDate packedDate;
-
-  @Column(name = "best_before_date")
-  private LocalDate bestBeforeDate;
-
   private String status;
 
   @Column(name = "created_at")
@@ -134,22 +128,6 @@ public class Batch {
 
   public void setHarvestDate(LocalDate harvestDate) {
     this.harvestDate = harvestDate;
-  }
-
-  public LocalDate getPackedDate() {
-    return packedDate;
-  }
-
-  public void setPackedDate(LocalDate packedDate) {
-    this.packedDate = packedDate;
-  }
-
-  public LocalDate getBestBeforeDate() {
-    return bestBeforeDate;
-  }
-
-  public void setBestBeforeDate(LocalDate bestBeforeDate) {
-    this.bestBeforeDate = bestBeforeDate;
   }
 
   public String getStatus() {

@@ -16,6 +16,4 @@ public record CreateBatchRequest(
     @NotNull @Positive BigDecimal quantity,
     @NotBlank String unit,
     @NotNull LocalDate harvestDate,
-    LocalDate packedDate,
-    LocalDate bestBeforeDate,
     @NotBlank String status) {}
