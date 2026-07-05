@@ -36,9 +36,7 @@ storage:
   s3:
     region: ${AWS_REGION:ap-south-1}
     bucket: ${AWS_S3_BUCKET:}
-
-media:
-  presigned-url-expiry-minutes: ${MEDIA_PRESIGNED_URL_EXPIRY_MINUTES:15}
+    presigned-url-expiry-minutes: ${AWS_S3_PRESIGNED_EXPIRY_MINUTES:15}
 
 app:
   security:
