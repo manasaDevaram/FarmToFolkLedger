@@ -36,11 +36,7 @@ storage:
   s3:
     region: ${AWS_REGION:ap-south-1}
     bucket: ${AWS_S3_BUCKET:}
-    access-key: ${AWS_ACCESS_KEY_ID:dummy-access-key}
-    secret-key: ${AWS_SECRET_ACCESS_KEY:dummy-secret-key}
-
-media:
-  presigned-url-expiry-minutes: ${MEDIA_PRESIGNED_URL_EXPIRY_MINUTES:15}
+    presigned-url-expiry-minutes: ${AWS_S3_PRESIGNED_EXPIRY_MINUTES:15}
 
 app:
   public-trace-base-url: ${PUBLIC_TRACE_BASE_URL:http://localhost:8080/api/public/trace}

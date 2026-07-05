@@ -39,7 +39,7 @@ public class S3StorageService implements StorageService {
       S3Client s3Client,
       S3Presigner s3Presigner,
       StorageProperties storageProperties,
-      @Value("${media.presigned-url-expiry-minutes:15}") long expiryMinutes) {
+      @Value("${storage.s3.presigned-url-expiry-minutes:15}") long expiryMinutes) {
     this.s3Client = s3Client;
     this.s3Presigner = s3Presigner;
     this.storageProperties = storageProperties;
