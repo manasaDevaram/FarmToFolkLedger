@@ -27,8 +27,6 @@ storage:
   s3:
     region: ap-south-1
     bucket: test-bucket
-    access-key: test-access-key
-    secret-key: test-secret-key
 
 media:
   presigned-url-expiry-minutes: 15
