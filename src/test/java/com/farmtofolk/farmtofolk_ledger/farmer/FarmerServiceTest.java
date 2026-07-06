@@ -41,9 +41,7 @@ class FarmerServiceTest {
     FarmerService service =
         new FarmerService(
             farmerRepository,
-            cacheService,
             storageService,
-            afterCommitExecutor,
             domainEventPublisher,
             transactionManager,
             userRepository,
@@ -79,9 +77,7 @@ class FarmerServiceTest {
     FarmerService service =
         new FarmerService(
             farmerRepository,
-            cacheService,
             storageService,
-            afterCommitExecutor,
             domainEventPublisher,
             transactionManager,
             userRepository,
@@ -108,5 +104,37 @@ class FarmerServiceTest {
     assertEquals("encoded-default", userCaptor.getValue().getPasswordHash());
     assertEquals(com.farmtofolk.farmtofolk_ledger.auth.UserRole.FARMER, userCaptor.getValue().getRole());
     assertEquals(userId, farmerCaptor.getValue().getUserId());
+  }
+
+  @Test
+  void updateNormalizesBlankPhoneToNull() {
+    UUID farmerId = UUID.randomUUID();
+    Farmer farmer = new Farmer();
+    org.springframework.test.util.ReflectionTestUtils.setField(farmer, "id", farmerId);
+    farmer.setFarmerCode("FTF-FR-2026-000003");
+    when(farmerRepository.findById(farmerId)).thenReturn(java.util.Optional.of(farmer));
+    when(farmerRepository.saveAndFlush(farmer)).thenReturn(farmer);
+    FarmerService service =
+        new FarmerService(
+            farmerRepository,
+            storageService,
+            domainEventPublisher,
+            transactionManager,
+            userRepository,
+            passwordEncoder,
+            "ChangeMe@123");
+
+    service.updateFarmer(
+        farmerId,
+        new CreateFarmerRequest(
+            "FTF-FR-2026-000003", "Ramesh", "   ", "Village", "District", "State",
+            null, null, null, LocalDate.now()));
+
+    assertEquals(null, farmer.getPhone());
+    verify(domainEventPublisher)
+        .publishAfterCommit(
+            new com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent(
+                com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent.Scope.FARMER,
+                farmerId));
   }
 }

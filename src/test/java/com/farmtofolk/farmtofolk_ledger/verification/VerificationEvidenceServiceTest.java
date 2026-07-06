@@ -64,12 +64,10 @@ class VerificationEvidenceServiceTest {
         new VerificationEvidenceService(
             evidenceRepository,
             verificationRepository,
-            cacheService,
             storageService,
             fileHashService,
             currentUserService,
             blockchainProofService,
-            afterCommitExecutor,
             domainEventPublisher,
             transactionManager);
 
@@ -97,12 +95,10 @@ class VerificationEvidenceServiceTest {
         new VerificationEvidenceService(
             evidenceRepository,
             verificationRepository,
-            cacheService,
             storageService,
             fileHashService,
             currentUserService,
             blockchainProofService,
-            afterCommitExecutor,
             domainEventPublisher,
             transactionManager);
 
@@ -140,12 +136,10 @@ class VerificationEvidenceServiceTest {
         new VerificationEvidenceService(
             evidenceRepository,
             verificationRepository,
-            cacheService,
             storageService,
             fileHashService,
             currentUserService,
             blockchainProofService,
-            afterCommitExecutor,
             domainEventPublisher,
             transactionManager);
 

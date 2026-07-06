@@ -1,10 +1,10 @@
 package com.farmtofolk.farmtofolk_ledger.farm;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,18 +20,15 @@ public class FarmService {
 
   private final FarmRepository farmRepository;
   private final FarmerRepository farmerRepository;
-  private final PublicTraceCacheService publicTraceCacheService;
-  private final AfterCommitExecutor afterCommitExecutor;
+  private final DomainEventPublisher domainEventPublisher;
 
   public FarmService(
       FarmRepository farmRepository,
       FarmerRepository farmerRepository,
-      PublicTraceCacheService publicTraceCacheService,
-      AfterCommitExecutor afterCommitExecutor) {
+      DomainEventPublisher domainEventPublisher) {
     this.farmRepository = farmRepository;
     this.farmerRepository = farmerRepository;
-    this.publicTraceCacheService = publicTraceCacheService;
-    this.afterCommitExecutor = afterCommitExecutor;
+    this.domainEventPublisher = domainEventPublisher;
   }
 
   public FarmResponse createFarm(CreateFarmRequest request) {
@@ -98,7 +95,8 @@ public class FarmService {
 
     Farm savedFarm = farmRepository.save(farm);
     // Clear QR page stable data because farm details changed.
-    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarm(farmId));
+    domainEventPublisher.publishAfterCommit(
+        new PublicTraceContentChangedEvent(PublicTraceContentChangedEvent.Scope.FARM, farmId));
     return FarmResponse.from(savedFarm);
   }
 

@@ -4,7 +4,6 @@ import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,25 +17,36 @@ public class PublicTraceCacheEventListener {
         this.publicTraceCacheService = publicTraceCacheService;
     }
 
-    @Async("domainEventExecutor")
     @EventListener
     public void onBatchUpdated(BatchUpdatedEvent event) {
         evictBatch(event.batchId(), "batch update");
     }
 
-    @Async("domainEventExecutor")
     @EventListener
     public void onTraceEventCreated(TraceEventCreatedEvent event) {
         evictBatch(event.batchId(), "trace event creation");
     }
 
-    @Async("domainEventExecutor")
     @EventListener
     public void onFarmVerificationChanged(FarmVerificationChangedEvent event) {
         try {
             publicTraceCacheService.evictStableDataForFarm(event.farmId());
         } catch (RuntimeException exception) {
             log.warn("Failed to evict public trace cache after farm verification change {}", event.verificationId(), exception);
+        }
+    }
+
+    @EventListener
+    public void onPublicTraceContentChanged(PublicTraceContentChangedEvent event) {
+        try {
+            switch (event.scope()) {
+                case BATCH -> publicTraceCacheService.evictStableDataForBatch(event.entityId());
+                case FARM -> publicTraceCacheService.evictStableDataForFarm(event.entityId());
+                case FARMER -> publicTraceCacheService.evictStableDataForFarmer(event.entityId());
+            }
+        } catch (RuntimeException exception) {
+            log.warn("Failed to evict public trace cache for {} {}",
+                    event.scope(), event.entityId(), exception);
         }
     }
 

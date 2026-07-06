@@ -3,10 +3,9 @@ package com.farmtofolk.farmtofolk_ledger.verification;
 import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
 import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
+import com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.storage.FileHashService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
@@ -35,34 +34,28 @@ public class VerificationEvidenceService {
 
   private final VerificationEvidenceRepository verificationEvidenceRepository;
   private final FarmVerificationRepository farmVerificationRepository;
-  private final PublicTraceCacheService publicTraceCacheService;
   private final StorageService storageService;
   private final FileHashService fileHashService;
   private final CurrentUserService currentUserService;
   private final BlockchainProofService blockchainProofService;
-  private final AfterCommitExecutor afterCommitExecutor;
   private final TransactionTemplate transactionTemplate;
   private final DomainEventPublisher domainEventPublisher;
 
   public VerificationEvidenceService(
       VerificationEvidenceRepository verificationEvidenceRepository,
       FarmVerificationRepository farmVerificationRepository,
-      PublicTraceCacheService publicTraceCacheService,
       StorageService storageService,
       FileHashService fileHashService,
       CurrentUserService currentUserService,
       BlockchainProofService blockchainProofService,
-      AfterCommitExecutor afterCommitExecutor,
       DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager) {
     this.verificationEvidenceRepository = verificationEvidenceRepository;
     this.farmVerificationRepository = farmVerificationRepository;
-    this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
     this.fileHashService = fileHashService;
     this.currentUserService = currentUserService;
     this.blockchainProofService = blockchainProofService;
-    this.afterCommitExecutor = afterCommitExecutor;
     this.domainEventPublisher = domainEventPublisher;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.transactionTemplate.setPropagationBehavior(
@@ -84,8 +77,7 @@ public class VerificationEvidenceService {
     VerificationEvidence savedVerificationEvidence =
         verificationEvidenceRepository.save(verificationEvidence);
     // Clear QR page stable data because verification evidence changed.
-    afterCommitExecutor.run(
-        () -> publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId()));
+    publishFarmChanged(farmVerification.getFarmId());
     return VerificationEvidenceResponse.from(savedVerificationEvidence, storageService);
   }
 
@@ -134,7 +126,7 @@ public class VerificationEvidenceService {
           new ImageUploadedEvent(
               "VERIFICATION_EVIDENCE", response.id(), storedFile.objectKey()));
     }
-    publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId());
+    publishFarmChanged(farmVerification.getFarmId());
     return response;
   }
 
@@ -159,8 +151,7 @@ public class VerificationEvidenceService {
         findFarmVerification(verificationEvidence.getVerificationId());
     verificationEvidenceRepository.delete(verificationEvidence);
     // Clear QR page stable data because verification evidence changed.
-    afterCommitExecutor.run(
-        () -> publicTraceCacheService.evictStableDataForFarm(farmVerification.getFarmId()));
+    publishFarmChanged(farmVerification.getFarmId());
   }
 
   private VerificationEvidence findVerificationEvidence(UUID evidenceId) {
@@ -193,6 +184,11 @@ public class VerificationEvidenceService {
 
   private boolean isImage(String contentType) {
     return contentType != null && contentType.startsWith("image/");
+  }
+
+  private void publishFarmChanged(UUID farmId) {
+    domainEventPublisher.publishAfterCommit(
+        new PublicTraceContentChangedEvent(PublicTraceContentChangedEvent.Scope.FARM, farmId));
   }
 
   private void deleteUploadedFileSafely(String fileKey) {

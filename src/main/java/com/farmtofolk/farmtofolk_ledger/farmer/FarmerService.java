@@ -5,10 +5,9 @@ import com.farmtofolk.farmtofolk_ledger.auth.UserRepository;
 import com.farmtofolk.farmtofolk_ledger.auth.UserRole;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
+import com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
 import java.util.List;
@@ -17,6 +16,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -32,9 +32,7 @@ public class FarmerService {
       Set.of("video/mp4", "video/quicktime");
 
   private final FarmerRepository farmerRepository;
-  private final PublicTraceCacheService publicTraceCacheService;
   private final StorageService storageService;
-  private final AfterCommitExecutor afterCommitExecutor;
   private final DomainEventPublisher domainEventPublisher;
   private final TransactionTemplate transactionTemplate;
   private final UserRepository userRepository;
@@ -43,9 +41,7 @@ public class FarmerService {
 
   public FarmerService(
       FarmerRepository farmerRepository,
-      PublicTraceCacheService publicTraceCacheService,
       StorageService storageService,
-      AfterCommitExecutor afterCommitExecutor,
       DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager,
       UserRepository userRepository,
@@ -53,9 +49,7 @@ public class FarmerService {
       @Value("${app.security.default-user-password:ChangeMe@123}")
           String defaultUserPassword) {
     this.farmerRepository = farmerRepository;
-    this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
-    this.afterCommitExecutor = afterCommitExecutor;
     this.domainEventPublisher = domainEventPublisher;
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
@@ -105,7 +99,7 @@ public class FarmerService {
             });
     domainEventPublisher.publishAfterCommit(
         new ImageUploadedEvent("FARMER_PROFILE", farmerId, storedFile.objectKey()));
-    publicTraceCacheService.evictStableDataForFarmer(farmerId);
+    publishFarmerChanged(farmerId);
     return response;
   }
 
@@ -120,7 +114,7 @@ public class FarmerService {
               farmer.setIntroVideoKey(storedFile.objectKey());
               farmer.setIntroVideoUrl(null);
             });
-    publicTraceCacheService.evictStableDataForFarmer(farmerId);
+    publishFarmerChanged(farmerId);
     return response;
   }
 
@@ -146,9 +140,8 @@ public class FarmerService {
     validateUniqueFields(farmer.getFarmerCode(), farmer.getPhone(), farmerId);
     syncLinkedUser(farmer);
 
-    Farmer savedFarmer = farmerRepository.save(farmer);
-    // Clear QR page stable data because farmer details changed.
-    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarmer(farmerId));
+    Farmer savedFarmer = saveAndFlushFarmer(farmer);
+    publishFarmerChanged(farmerId);
     return FarmerResponse.from(savedFarmer, storageService);
   }
 
@@ -161,9 +154,8 @@ public class FarmerService {
       userRepository.findById(farmer.getUserId()).ifPresent(user -> user.setActive(request.active()));
     }
 
-    Farmer savedFarmer = farmerRepository.save(farmer);
-    // Clear QR page stable data because farmer status changed.
-    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarmer(farmerId));
+    Farmer savedFarmer = saveAndFlushFarmer(farmer);
+    publishFarmerChanged(farmerId);
     return FarmerResponse.from(savedFarmer, storageService);
   }
 
@@ -180,7 +172,8 @@ public class FarmerService {
       farmer.setFarmerCode(request.farmerCode().trim());
     }
     farmer.setName(request.name());
-    farmer.setPhone(request.phone() == null ? null : request.phone().trim());
+    String normalizedPhone = request.phone() == null ? null : request.phone().trim();
+    farmer.setPhone(normalizedPhone == null || normalizedPhone.isBlank() ? null : normalizedPhone);
     farmer.setVillage(request.village());
     farmer.setDistrict(request.district());
     farmer.setState(request.state());
@@ -233,6 +226,30 @@ public class FarmerService {
     }
     user.setName(farmer.getName());
     user.setPhone(farmer.getPhone());
+  }
+
+  private Farmer saveAndFlushFarmer(Farmer farmer) {
+    try {
+      return farmerRepository.saveAndFlush(farmer);
+    } catch (DataIntegrityViolationException exception) {
+      String detail = exception.getMostSpecificCause().getMessage().toLowerCase(java.util.Locale.ROOT);
+      if (detail.contains("farmer_code")) {
+        throw new ConflictException("Farmer code already exists");
+      }
+      if (detail.contains("phone")) {
+        throw new ConflictException("Farmer phone already exists");
+      }
+      if (detail.contains("user_id")) {
+        throw new ConflictException("Farmer is already linked to another user");
+      }
+      throw exception;
+    }
+  }
+
+  private void publishFarmerChanged(UUID farmerId) {
+    domainEventPublisher.publishAfterCommit(
+        new PublicTraceContentChangedEvent(
+            PublicTraceContentChangedEvent.Scope.FARMER, farmerId));
   }
 
   private FarmerResponse saveUploadedFarmerFile(
