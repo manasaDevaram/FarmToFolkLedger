@@ -1,11 +1,10 @@
 package com.farmtofolk.farmtofolk_ledger.media;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
+import com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
 import java.util.List;
@@ -26,25 +25,19 @@ public class FarmMediaService {
 
   private final FarmMediaRepository farmMediaRepository;
   private final FarmRepository farmRepository;
-  private final PublicTraceCacheService publicTraceCacheService;
   private final StorageService storageService;
-  private final AfterCommitExecutor afterCommitExecutor;
   private final TransactionTemplate transactionTemplate;
   private final DomainEventPublisher domainEventPublisher;
 
   public FarmMediaService(
       FarmMediaRepository farmMediaRepository,
       FarmRepository farmRepository,
-      PublicTraceCacheService publicTraceCacheService,
       StorageService storageService,
-      AfterCommitExecutor afterCommitExecutor,
       DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager) {
     this.farmMediaRepository = farmMediaRepository;
     this.farmRepository = farmRepository;
-    this.publicTraceCacheService = publicTraceCacheService;
     this.storageService = storageService;
-    this.afterCommitExecutor = afterCommitExecutor;
     this.domainEventPublisher = domainEventPublisher;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.transactionTemplate.setPropagationBehavior(
@@ -64,7 +57,7 @@ public class FarmMediaService {
     // Save the media and return API-friendly response data.
     FarmMedia savedFarmMedia = farmMediaRepository.save(farmMedia);
     // Clear QR page stable data because farm media changed.
-    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarm(farmId));
+    publishFarmChanged(farmId);
     return FarmMediaResponse.from(savedFarmMedia, storageService);
   }
 
@@ -102,7 +95,7 @@ public class FarmMediaService {
       domainEventPublisher.publishAfterCommit(
           new ImageUploadedEvent("FARM_MEDIA", response.id(), storedFile.objectKey()));
     }
-    publicTraceCacheService.evictStableDataForFarm(farmId);
+    publishFarmChanged(farmId);
     return response;
   }
 
@@ -123,8 +116,7 @@ public class FarmMediaService {
     FarmMedia farmMedia = findFarmMedia(mediaId);
     farmMediaRepository.delete(farmMedia);
     // Clear QR page stable data because farm media changed.
-    afterCommitExecutor.run(
-        () -> publicTraceCacheService.evictStableDataForFarm(farmMedia.getFarmId()));
+    publishFarmChanged(farmMedia.getFarmId());
   }
 
   private FarmMedia findFarmMedia(UUID mediaId) {
@@ -151,6 +143,11 @@ public class FarmMediaService {
 
   private boolean isImage(String contentType) {
     return contentType != null && contentType.startsWith("image/");
+  }
+
+  private void publishFarmChanged(UUID farmId) {
+    domainEventPublisher.publishAfterCommit(
+        new PublicTraceContentChangedEvent(PublicTraceContentChangedEvent.Scope.FARM, farmId));
   }
 
   private void deleteUploadedFileSafely(String fileKey) {

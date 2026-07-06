@@ -36,13 +36,21 @@ class EventListenerTest {
         PublicTraceCacheEventListener listener = new PublicTraceCacheEventListener(cacheService);
         UUID batchId = UUID.randomUUID();
         UUID farmId = UUID.randomUUID();
+        UUID farmerId = UUID.randomUUID();
 
         listener.onBatchUpdated(new BatchUpdatedEvent(batchId));
         listener.onTraceEventCreated(new TraceEventCreatedEvent(batchId, UUID.randomUUID()));
         listener.onFarmVerificationChanged(new FarmVerificationChangedEvent(farmId, UUID.randomUUID()));
+        listener.onPublicTraceContentChanged(
+                new PublicTraceContentChangedEvent(
+                        PublicTraceContentChangedEvent.Scope.FARMER, farmerId));
+        listener.onPublicTraceContentChanged(
+                new PublicTraceContentChangedEvent(
+                        PublicTraceContentChangedEvent.Scope.FARM, farmId));
 
         verify(cacheService, org.mockito.Mockito.times(2)).evictStableDataForBatch(batchId);
-        verify(cacheService).evictStableDataForFarm(farmId);
+        verify(cacheService).evictStableDataForFarmer(farmerId);
+        verify(cacheService, org.mockito.Mockito.times(2)).evictStableDataForFarm(farmId);
     }
 
     @Test
