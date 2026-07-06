@@ -1,9 +1,9 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.FarmVerificationChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -15,18 +15,15 @@ public class FarmVerificationService {
 
   private final FarmVerificationRepository farmVerificationRepository;
   private final FarmRepository farmRepository;
-  private final PublicTraceCacheService publicTraceCacheService;
-  private final AfterCommitExecutor afterCommitExecutor;
+  private final DomainEventPublisher domainEventPublisher;
 
   public FarmVerificationService(
       FarmVerificationRepository farmVerificationRepository,
       FarmRepository farmRepository,
-      PublicTraceCacheService publicTraceCacheService,
-      AfterCommitExecutor afterCommitExecutor) {
+      DomainEventPublisher domainEventPublisher) {
     this.farmVerificationRepository = farmVerificationRepository;
     this.farmRepository = farmRepository;
-    this.publicTraceCacheService = publicTraceCacheService;
-    this.afterCommitExecutor = afterCommitExecutor;
+    this.domainEventPublisher = domainEventPublisher;
   }
 
   public FarmVerificationResponse createFarmVerification(
@@ -42,7 +39,8 @@ public class FarmVerificationService {
     // Save the verification and return API-friendly response data.
     FarmVerification savedFarmVerification = farmVerificationRepository.save(farmVerification);
     // Clear QR page stable data because latest verification may have changed.
-    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForFarm(farmId));
+    domainEventPublisher.publishAfterCommit(
+        new FarmVerificationChangedEvent(farmId, savedFarmVerification.getId()));
     return FarmVerificationResponse.from(savedFarmVerification);
   }
 
@@ -82,8 +80,9 @@ public class FarmVerificationService {
 
     FarmVerification savedFarmVerification = farmVerificationRepository.save(farmVerification);
     // Clear QR page stable data because verification details changed.
-    afterCommitExecutor.run(
-        () -> publicTraceCacheService.evictStableDataForFarm(savedFarmVerification.getFarmId()));
+    domainEventPublisher.publishAfterCommit(
+        new FarmVerificationChangedEvent(
+            savedFarmVerification.getFarmId(), savedFarmVerification.getId()));
     return FarmVerificationResponse.from(savedFarmVerification);
   }
 

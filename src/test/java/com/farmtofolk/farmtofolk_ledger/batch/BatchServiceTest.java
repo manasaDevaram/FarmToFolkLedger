@@ -7,11 +7,11 @@ import static org.mockito.Mockito.when;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
+import com.farmtofolk.farmtofolk_ledger.events.BatchUpdatedEvent;
+import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -21,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import static org.mockito.Mockito.doAnswer;
 
 @ExtendWith(MockitoExtension.class)
 class BatchServiceTest {
@@ -32,9 +31,7 @@ class BatchServiceTest {
 
   @Mock private FarmerRepository farmerRepository;
 
-  @Mock private PublicTraceCacheService publicTraceCacheService;
-
-  @Mock private AfterCommitExecutor afterCommitExecutor;
+  @Mock private DomainEventPublisher domainEventPublisher;
 
   @InjectMocks private BatchService batchService;
 
@@ -85,14 +82,7 @@ class BatchServiceTest {
   }
 
   @Test
-  void updateBatchEvictsPublicTraceCache() {
-    doAnswer(
-            invocation -> {
-              invocation.<Runnable>getArgument(0).run();
-              return null;
-            })
-        .when(afterCommitExecutor)
-        .run(org.mockito.ArgumentMatchers.any());
+  void updateBatchPublishesCacheEvictionEvent() {
     UUID farmerId = UUID.randomUUID();
     UUID farmId = UUID.randomUUID();
     UUID batchId = UUID.randomUUID();
@@ -124,7 +114,7 @@ class BatchServiceTest {
 
     batchService.updateBatch(batchId, request);
 
-    verify(publicTraceCacheService).evictStableDataForBatch(batchId);
+    verify(domainEventPublisher).publishAfterCommit(new BatchUpdatedEvent(batchId));
   }
 
   @Test
