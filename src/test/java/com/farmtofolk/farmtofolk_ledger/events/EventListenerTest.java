@@ -6,6 +6,7 @@ import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -18,15 +19,15 @@ class EventListenerTest {
     @Test
     void scanRecordingFailureDoesNotEscapeListener() {
         ScanEventService scanEventService = mock(ScanEventService.class);
-        ScanEventListener listener = new ScanEventListener(scanEventService);
-        PublicTraceScannedEvent event = new PublicTraceScannedEvent(
-                "token", null, null, null, null, null, null
-        );
+        QrScanAnalyticsListener listener = new QrScanAnalyticsListener(scanEventService);
+        QrScannedEvent event = new QrScannedEvent(
+                "token", UUID.randomUUID(), UUID.randomUUID(),
+                null, null, null, null, null, null, Instant.now());
         doThrow(new IllegalStateException("database unavailable"))
                 .when(scanEventService)
-                .recordScan("token", null, null, null, null, null, null);
+                .recordScan(event);
 
-        assertDoesNotThrow(() -> listener.onPublicTraceScanned(event));
+        assertDoesNotThrow(() -> listener.onQrScanned(event));
     }
 
     @Test

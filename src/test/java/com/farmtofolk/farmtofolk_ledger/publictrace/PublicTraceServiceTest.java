@@ -1,77 +1,87 @@
 package com.farmtofolk.farmtofolk_ledger.publictrace;
 
-import com.farmtofolk.farmtofolk_ledger.batch.Batch;
-import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
-import com.farmtofolk.farmtofolk_ledger.batch.BatchResponse;
-import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
-import com.farmtofolk.farmtofolk_ledger.events.PublicTraceScannedEvent;
-import com.farmtofolk.farmtofolk_ledger.farmer.FarmerResponse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.events.QrScannedEvent;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
-import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
-import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class PublicTraceServiceTest {
 
-    @Mock
-    private QrCodeRepository qrCodeRepository;
-    @Mock
-    private BatchRepository batchRepository;
-    @Mock
-    private TraceEventRepository traceEventRepository;
-    @Mock
-    private PublicTraceCacheService publicTraceCacheService;
-    @Mock
-    private DomainEventPublisher domainEventPublisher;
-    @Mock
-    private StorageService storageService;
+  @Mock private QrCodeRepository qrCodeRepository;
+  @Mock private PublicTraceCacheService publicTraceCacheService;
+  @Mock private ApplicationEventPublisher eventPublisher;
+  @InjectMocks private PublicTraceService publicTraceService;
 
-    @InjectMocks
-    private PublicTraceService publicTraceService;
+  @Test
+  void publishesResolvedQrDetailsAndReturnsCachedResponse() {
+    String token = "public-token";
+    UUID qrCodeId = UUID.randomUUID();
+    UUID batchId = UUID.randomUUID();
+    QrCode qrCode = new QrCode();
+    org.springframework.test.util.ReflectionTestUtils.setField(qrCode, "id", qrCodeId);
+    qrCode.setBatchId(batchId);
+    qrCode.setPublicToken(token);
+    qrCode.setIsActive(true);
+    PublicTraceResponse cachedResponse =
+        new PublicTraceResponse(null, null, null, null, null, List.of(), List.of(), List.of());
+    when(qrCodeRepository.findByPublicToken(token)).thenReturn(Optional.of(qrCode));
+    when(publicTraceCacheService.getFullTrace(token, qrCode)).thenReturn(cachedResponse);
 
-    @Test
-    void publicTraceReturnsBeforeScanRecordingAndOnlyPublishesEvent() {
-        String token = "public-token";
-        UUID batchId = UUID.randomUUID();
-        QrCode qrCode = new QrCode();
-        qrCode.setBatchId(batchId);
-        qrCode.setPublicToken(token);
-        qrCode.setIsActive(true);
+    assertEquals(cachedResponse, publicTraceService.getPublicTrace(token));
 
-        Batch batch = new Batch();
-        ReflectionTestUtils.setField(batch, "id", batchId);
-        FarmerResponse farmer = new FarmerResponse(
-                UUID.randomUUID(), "F-1", "Farmer", null, null, null, null,
-                null, null, null, null, true, null, null);
-        CachedPublicTraceStableData stableData = new CachedPublicTraceStableData(
-                BatchResponse.from(batch), farmer, null, null, List.of(), List.of()
-        );
+    ArgumentCaptor<QrScannedEvent> captor = ArgumentCaptor.forClass(QrScannedEvent.class);
+    verify(eventPublisher).publishEvent(captor.capture());
+    assertEquals(qrCodeId, captor.getValue().qrCodeId());
+    assertEquals(batchId, captor.getValue().batchId());
+    verify(publicTraceCacheService).getFullTrace(token, qrCode);
+  }
 
-        when(qrCodeRepository.findByPublicTokenAndIsActiveTrue(token)).thenReturn(Optional.of(qrCode));
-        when(publicTraceCacheService.getStableData(token)).thenReturn(stableData);
-        when(batchRepository.findById(batchId)).thenReturn(Optional.of(batch));
-        when(traceEventRepository.findByBatchIdOrderByEventTimeAsc(batchId)).thenReturn(List.of());
+  @Test
+  void invalidTokenIsNotPublishedOrCached() {
+    String token = "invalid-token";
+    when(qrCodeRepository.findByPublicToken(token)).thenReturn(Optional.empty());
 
-        PublicTraceResponse response = publicTraceService.getPublicTrace(token);
+    assertThrows(ResourceNotFoundException.class, () -> publicTraceService.getPublicTrace(token));
 
-        assertNotNull(response);
-        verify(domainEventPublisher).publishAfterCommit(
-                new PublicTraceScannedEvent(token, null, null, null, null, null, null)
-        );
-    }
+    verify(eventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
+    verify(publicTraceCacheService, never())
+        .getFullTrace(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void eventPublicationFailureDoesNotFailPublicTrace() {
+    String token = "public-token";
+    QrCode qrCode = new QrCode();
+    org.springframework.test.util.ReflectionTestUtils.setField(qrCode, "id", UUID.randomUUID());
+    qrCode.setBatchId(UUID.randomUUID());
+    qrCode.setPublicToken(token);
+    qrCode.setIsActive(true);
+    PublicTraceResponse cachedResponse =
+        new PublicTraceResponse(null, null, null, null, null, List.of(), List.of(), List.of());
+    when(qrCodeRepository.findByPublicToken(token)).thenReturn(Optional.of(qrCode));
+    when(publicTraceCacheService.getFullTrace(token, qrCode)).thenReturn(cachedResponse);
+    doThrow(new IllegalStateException("executor full"))
+        .when(eventPublisher)
+        .publishEvent(org.mockito.ArgumentMatchers.any(QrScannedEvent.class));
+
+    assertEquals(cachedResponse, publicTraceService.getPublicTrace(token));
+  }
 }

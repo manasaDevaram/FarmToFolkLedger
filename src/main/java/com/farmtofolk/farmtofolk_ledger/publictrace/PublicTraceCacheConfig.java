@@ -27,13 +27,17 @@ public class PublicTraceCacheConfig {
     GenericJackson2JsonRedisSerializer serializer =
         new GenericJackson2JsonRedisSerializer(redisObjectMapper);
 
-    return builder ->
-        builder.withCacheConfiguration(
+    RedisCacheConfiguration baseConfiguration =
+        RedisCacheConfiguration.defaultCacheConfig()
+            .serializeValuesWith(
+                RedisSerializationContext.SerializationPair.fromSerializer(serializer));
+    return builder -> {
+      builder.withCacheConfiguration(
             "publicTraceStable",
-            RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(10))
-                .serializeValuesWith(
-                    RedisSerializationContext.SerializationPair.fromSerializer(serializer)));
+            baseConfiguration.entryTtl(Duration.ofMinutes(10)));
+      builder.withCacheConfiguration(
+          "publicTraceFull", baseConfiguration.entryTtl(Duration.ofMinutes(2)));
+    };
   }
 
   @Bean

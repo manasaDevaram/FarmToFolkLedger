@@ -14,6 +14,10 @@ import com.farmtofolk.farmtofolk_ledger.media.FarmMediaRepository;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
+import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
+import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
+import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerification;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationResponse;
@@ -27,10 +31,14 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 @Transactional(readOnly = true)
 public class PublicTraceCacheService {
+
+  private static final Logger log = LoggerFactory.getLogger(PublicTraceCacheService.class);
 
   private final QrCodeRepository qrCodeRepository;
   private final BatchRepository batchRepository;
@@ -39,6 +47,8 @@ public class PublicTraceCacheService {
   private final FarmVerificationRepository farmVerificationRepository;
   private final VerificationEvidenceRepository verificationEvidenceRepository;
   private final FarmMediaRepository farmMediaRepository;
+  private final TraceEventRepository traceEventRepository;
+  private final StorageService storageService;
   private final CacheManager cacheManager;
 
   public PublicTraceCacheService(
@@ -49,6 +59,8 @@ public class PublicTraceCacheService {
       FarmVerificationRepository farmVerificationRepository,
       VerificationEvidenceRepository verificationEvidenceRepository,
       FarmMediaRepository farmMediaRepository,
+      TraceEventRepository traceEventRepository,
+      StorageService storageService,
       CacheManager cacheManager) {
     this.qrCodeRepository = qrCodeRepository;
     this.batchRepository = batchRepository;
@@ -57,7 +69,41 @@ public class PublicTraceCacheService {
     this.farmVerificationRepository = farmVerificationRepository;
     this.verificationEvidenceRepository = verificationEvidenceRepository;
     this.farmMediaRepository = farmMediaRepository;
+    this.traceEventRepository = traceEventRepository;
+    this.storageService = storageService;
     this.cacheManager = cacheManager;
+  }
+
+  @Cacheable(value = "publicTraceFull", key = "#publicToken", unless = "#result == null")
+  public PublicTraceResponse getFullTrace(String publicToken, QrCode qrCode) {
+    long startedAt = System.nanoTime();
+    Batch batch =
+        batchRepository
+            .findById(qrCode.getBatchId())
+            .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+    CachedPublicTraceStableData stableData = loadStableData(batch);
+    List<TraceEventResponse> traceEvents =
+        traceEventRepository.findByBatchIdOrderByEventTimeAsc(batch.getId()).stream()
+            .map(TraceEventResponse::from)
+            .toList();
+    PublicTraceResponse response =
+        new PublicTraceResponse(
+            QrCodeResponse.from(qrCode),
+            PublicBatchTraceResponse.from(stableData.batch()),
+            stableData.farmer().withPresignedUrls(storageService),
+            stableData.farm(),
+            stableData.latestVerification(),
+            stableData.verificationEvidence().stream()
+                .map(evidence -> evidence.withPresignedUrl(storageService))
+                .toList(),
+            stableData.farmMedia().stream()
+                .map(media -> media.withPresignedUrl(storageService))
+                .toList(),
+            traceEvents);
+    log.info(
+        "Built public trace response in {} ms",
+        java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt));
+    return response;
   }
 
   @Cacheable(value = "publicTraceStable", key = "#publicToken")
@@ -68,11 +114,14 @@ public class PublicTraceCacheService {
             .findByPublicTokenAndIsActiveTrue(publicToken)
             .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
 
-    // Load the required stable trace objects.
     Batch batch =
         batchRepository
             .findById(qrCode.getBatchId())
             .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+    return loadStableData(batch);
+  }
+
+  private CachedPublicTraceStableData loadStableData(Batch batch) {
     Farmer farmer =
         farmerRepository
             .findById(batch.getFarmerId())
@@ -113,7 +162,7 @@ public class PublicTraceCacheService {
         farmMedia);
   }
 
-  @CacheEvict(value = "publicTraceStable", key = "#publicToken")
+  @CacheEvict(value = {"publicTraceFull", "publicTraceStable"}, key = "#publicToken")
   public void evictStableData(String publicToken) {
     // Explicit hook for future write flows that need to invalidate public trace stable data.
   }
@@ -140,9 +189,11 @@ public class PublicTraceCacheService {
 
   private void evictStableDataSafely(String publicToken) {
     try {
-      Cache cache = cacheManager.getCache("publicTraceStable");
-      if (cache != null) {
-        cache.evict(publicToken);
+      for (String cacheName : List.of("publicTraceFull", "publicTraceStable")) {
+        Cache cache = cacheManager.getCache(cacheName);
+        if (cache != null) {
+          cache.evict(publicToken);
+        }
       }
     } catch (RuntimeException ignored) {
       // Redis/cache eviction failures should not block the database write.

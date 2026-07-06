@@ -1,11 +1,8 @@
 package com.farmtofolk.farmtofolk_ledger.analytics;
 
-import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
+import com.farmtofolk.farmtofolk_ledger.events.QrScannedEvent;
 import com.farmtofolk.farmtofolk_ledger.events.ScanEventRecordedEvent;
-import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
-import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
-import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -16,45 +13,29 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScanEventService {
 
   private final ScanEventRepository scanEventRepository;
-  private final QrCodeRepository qrCodeRepository;
   private final DomainEventPublisher domainEventPublisher;
 
   public ScanEventService(
       ScanEventRepository scanEventRepository,
-      QrCodeRepository qrCodeRepository,
       DomainEventPublisher domainEventPublisher) {
     this.scanEventRepository = scanEventRepository;
-    this.qrCodeRepository = qrCodeRepository;
     this.domainEventPublisher = domainEventPublisher;
   }
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public ScanEventResponse recordScan(
-      String publicToken,
-      String country,
-      String state,
-      String city,
-      String deviceType,
-      String userAgent,
-      String ipHash) {
-    // Resolve the public token to an active QR code before recording a scan.
-    QrCode qrCode =
-        qrCodeRepository
-            .findByPublicTokenAndIsActiveTrue(publicToken)
-            .orElseThrow(() -> new ResourceNotFoundException("QR code not found"));
-
-    // Store only analytics metadata and the hashed IP value.
+  public ScanEventResponse recordScan(QrScannedEvent event) {
     ScanEvent scanEvent = new ScanEvent();
-    scanEvent.setQrCodeId(qrCode.getId());
-    scanEvent.setBatchId(qrCode.getBatchId());
-    scanEvent.setPublicToken(publicToken);
-    scanEvent.setScannedAt(LocalDateTime.now());
-    scanEvent.setCountry(country);
-    scanEvent.setState(state);
-    scanEvent.setCity(city);
-    scanEvent.setDeviceType(deviceType);
-    scanEvent.setUserAgent(userAgent);
-    scanEvent.setIpHash(ipHash);
+    scanEvent.setQrCodeId(event.qrCodeId());
+    scanEvent.setBatchId(event.batchId());
+    scanEvent.setPublicToken(event.publicToken());
+    scanEvent.setScannedAt(java.time.LocalDateTime.ofInstant(
+        event.scannedAt(), java.time.ZoneOffset.UTC));
+    scanEvent.setCountry(event.country());
+    scanEvent.setState(event.state());
+    scanEvent.setCity(event.city());
+    scanEvent.setDeviceType(event.deviceType());
+    scanEvent.setUserAgent(event.userAgent());
+    scanEvent.setIpHash(event.ipHash());
 
     ScanEvent savedScanEvent = scanEventRepository.save(scanEvent);
     domainEventPublisher.publishAfterCommit(
