@@ -109,6 +109,11 @@ public class PriceBreakdownService {
   }
 
   private void evictPublicTraceAfterCommit(UUID batchId) {
-    afterCommitExecutor.run(() -> publicTraceCacheService.evictStableDataForBatch(batchId));
+    afterCommitExecutor.run(
+        () -> {
+          publicTraceCacheService.evictStableDataForBatch(batchId);
+          // Price data is customer-facing and must never remain stale if token lookup misses.
+          publicTraceCacheService.evictAllPublicTraceData();
+        });
   }
 }

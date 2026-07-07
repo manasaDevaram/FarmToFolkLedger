@@ -93,7 +93,7 @@ public class PublicTraceCacheService {
             .toList();
     PublicTraceResponse response =
         new PublicTraceResponse(
-            QrCodeResponse.from(qrCode),
+            QrCodeResponse.from(qrCode, storageService),
             PublicBatchTraceResponse.from(stableData.batch()),
             stableData.farmer().withPresignedUrls(storageService),
             stableData.farm(),
@@ -180,6 +180,17 @@ public class PublicTraceCacheService {
         .findFirstByBatchIdAndIsActiveTrue(batchId)
         .map(QrCode::getPublicToken)
         .ifPresent(this::evictStableDataSafely);
+  }
+
+  public void evictAllPublicTraceData() {
+    try {
+      for (String cacheName : List.of("publicTraceFull", "publicTraceStable")) {
+        Cache cache = cacheManager.getCache(cacheName);
+        if (cache != null) cache.clear();
+      }
+    } catch (RuntimeException exception) {
+      log.warn("Failed to clear public trace caches", exception);
+    }
   }
 
   public void evictStableDataForFarmer(UUID farmerId) {

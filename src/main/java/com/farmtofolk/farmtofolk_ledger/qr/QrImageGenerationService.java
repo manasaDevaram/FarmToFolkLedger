@@ -42,7 +42,8 @@ public class QrImageGenerationService {
                 "qr-codes/" + event.batchId()
         );
 
-        qrImagePersistenceService.updateImageUrl(event.qrCodeId(), storedFile.fileUrl());
+        // S3 uploads return an object key; URLs are signed when the QR response is read.
+        qrImagePersistenceService.updateImageUrl(event.qrCodeId(), storedFile.objectKey());
     }
 
     private byte[] generatePng(String value) {
