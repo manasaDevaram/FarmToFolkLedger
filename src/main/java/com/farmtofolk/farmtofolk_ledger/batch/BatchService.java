@@ -1,7 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.batch;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
-import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.events.BatchUpdatedEvent;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
@@ -48,12 +47,14 @@ public class BatchService {
     verifyFarmerExists(request.farmerId());
     // Make sure the farm belongs to that farmer.
     verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
-    String batchCode = normalizeOrGenerateBatchCode(request.batchCode());
-    validateUniqueBatchCode(batchCode, null);
+    String batchCode = generateBatchCode();
 
     // Copy request data into a new Batch entity.
     Batch batch = new Batch();
-    applyRequest(batch, request, batchCode);
+    applyRequest(batch, request);
+    batch.setBatchCode(batchCode);
+    batch.setConsumerPricePerUnit(BigDecimal.ZERO);
+    batch.setOperationalCostPerUnit(BigDecimal.ZERO);
     batch.initializeInventory();
 
     // Save the batch and return API-friendly response data.
@@ -130,12 +131,15 @@ public class BatchService {
     verifyFarmerExists(request.farmerId());
     // Make sure the updated farm belongs to that farmer.
     verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
-    String batchCode = normalizeOrGenerateBatchCode(request.batchCode());
-    validateUniqueBatchCode(batchCode, batchId);
-
     // Load the existing batch, update its fields, then save it.
     Batch batch = findBatch(batchId);
-    applyRequest(batch, request, batchCode);
+    String existingBatchCode = batch.getBatchCode();
+    BigDecimal existingConsumerPrice = batch.getConsumerPricePerUnit();
+    BigDecimal existingOperationalCost = batch.getOperationalCostPerUnit();
+    applyRequest(batch, request);
+    batch.setBatchCode(existingBatchCode);
+    batch.setConsumerPricePerUnit(existingConsumerPrice);
+    batch.setOperationalCostPerUnit(existingOperationalCost);
     BigDecimal committedQuantity = zero(batch.getQuantitySold())
         .add(zero(batch.getQuantityWasted()))
         .add(zero(batch.getQuantityUsedInProduct()));
@@ -185,9 +189,8 @@ public class BatchService {
     }
   }
 
-  private void applyRequest(Batch batch, CreateBatchRequest request, String batchCode) {
+  private void applyRequest(Batch batch, CreateBatchRequest request) {
     // Keep request-to-entity field mapping in one place.
-    batch.setBatchCode(batchCode);
     batch.setFarmId(request.farmId());
     batch.setFarmerId(request.farmerId());
     batch.setCropName(request.cropName());
@@ -198,8 +201,6 @@ public class BatchService {
     batch.setReceivedDate(request.receivedDate());
     batch.setFarmerPricePerUnit(request.farmerPricePerUnit());
     batch.setPaymentStatus(request.paymentStatus());
-    batch.setConsumerPricePerUnit(request.consumerPricePerUnit());
-    batch.setOperationalCostPerUnit(request.operationalCostPerUnit());
     batch.setStatus(request.status());
   }
 
@@ -219,17 +220,7 @@ public class BatchService {
     return farm == null ? null : farm.getFarmName();
   }
 
-  private void validateUniqueBatchCode(String batchCode, UUID batchId) {
-    String normalizedBatchCode = batchCode.trim();
-    boolean duplicate =
-        batchId == null
-            ? batchRepository.existsByBatchCode(normalizedBatchCode)
-            : batchRepository.existsByBatchCodeAndIdNot(normalizedBatchCode, batchId);
-    if (duplicate) throw new ConflictException("Batch code already exists");
-  }
-
-  private String normalizeOrGenerateBatchCode(String requestedCode) {
-    if (requestedCode != null && !requestedCode.isBlank()) return requestedCode.trim();
+  private String generateBatchCode() {
     String prefix = "FTF-BATCH-" + java.time.LocalDate.now().getYear() + "-";
     long sequence = batchRepository.count() + 1;
     String generated = prefix + String.format("%06d", sequence);

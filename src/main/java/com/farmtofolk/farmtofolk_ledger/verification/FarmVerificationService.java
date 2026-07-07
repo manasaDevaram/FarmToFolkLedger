@@ -1,10 +1,12 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.FarmVerificationChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -102,15 +104,36 @@ public class FarmVerificationService {
 
   private void applyRequest(
       FarmVerification farmVerification, CreateFarmVerificationRequest request) {
-    // Keep request-to-entity field mapping in one place.
+    String status = normalizeStatus(request.status());
     farmVerification.setVerificationDate(request.verificationDate());
     farmVerification.setVerifiedByUserId(request.verifiedByUserId());
     farmVerification.setVerificationType(request.verificationType());
-    farmVerification.setStatus(request.status());
+    farmVerification.setStatus(status);
+    farmVerification.setObservations(request.observations());
+
+    if ("PENDING".equals(status)) {
+      // Pending is internal-only review state; keep only comments until visit is completed.
+      farmVerification.setChemicalFreeClaim(null);
+      farmVerification.setAgroecologyVerified(null);
+      farmVerification.setChecklistJson(null);
+      farmVerification.setNextVerificationDue(null);
+      return;
+    }
+
     farmVerification.setChemicalFreeClaim(request.chemicalFreeClaim());
     farmVerification.setAgroecologyVerified(request.agroecologyVerified());
     farmVerification.setChecklistJson(request.checklistJson());
-    farmVerification.setObservations(request.observations());
     farmVerification.setNextVerificationDue(request.nextVerificationDue());
+  }
+
+  private String normalizeStatus(String status) {
+    if (status == null || status.isBlank()) {
+      throw new BadRequestException("Verification status is required");
+    }
+    String normalized = status.trim().toUpperCase();
+    if (!Set.of("PENDING", "VERIFIED", "REJECTED", "APPROVED").contains(normalized)) {
+      throw new BadRequestException("Unsupported verification status");
+    }
+    return normalized;
   }
 }

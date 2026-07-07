@@ -20,10 +20,6 @@ import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
-import com.farmtofolk.farmtofolk_ledger.verification.FarmVerification;
-import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationRepository;
-import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationResponse;
-import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
 import java.util.List;
 import java.util.UUID;
@@ -46,8 +42,7 @@ public class PublicTraceCacheService {
   private final BatchRepository batchRepository;
   private final FarmerRepository farmerRepository;
   private final FarmRepository farmRepository;
-  private final FarmVerificationRepository farmVerificationRepository;
-  private final VerificationEvidenceRepository verificationEvidenceRepository;
+  private final PublicVerificationResolver publicVerificationResolver;
   private final FarmMediaRepository farmMediaRepository;
   private final TraceEventRepository traceEventRepository;
   private final PriceBreakdownRepository priceBreakdownRepository;
@@ -59,8 +54,7 @@ public class PublicTraceCacheService {
       BatchRepository batchRepository,
       FarmerRepository farmerRepository,
       FarmRepository farmRepository,
-      FarmVerificationRepository farmVerificationRepository,
-      VerificationEvidenceRepository verificationEvidenceRepository,
+      PublicVerificationResolver publicVerificationResolver,
       FarmMediaRepository farmMediaRepository,
       TraceEventRepository traceEventRepository,
       PriceBreakdownRepository priceBreakdownRepository,
@@ -70,8 +64,7 @@ public class PublicTraceCacheService {
     this.batchRepository = batchRepository;
     this.farmerRepository = farmerRepository;
     this.farmRepository = farmRepository;
-    this.farmVerificationRepository = farmVerificationRepository;
-    this.verificationEvidenceRepository = verificationEvidenceRepository;
+    this.publicVerificationResolver = publicVerificationResolver;
     this.farmMediaRepository = farmMediaRepository;
     this.traceEventRepository = traceEventRepository;
     this.priceBreakdownRepository = priceBreakdownRepository;
@@ -98,7 +91,7 @@ public class PublicTraceCacheService {
             stableData.farmer().withPresignedUrls(storageService),
             stableData.farm(),
             stableData.priceBreakdown(),
-            stableData.latestVerification(),
+            stableData.lastVerified(),
             stableData.verificationEvidence().stream()
                 .map(evidence -> evidence.withPresignedUrl(storageService))
                 .toList(),
@@ -137,20 +130,8 @@ public class PublicTraceCacheService {
             .findById(batch.getFarmId())
             .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
 
-    // Load optional verification and evidence data when available.
-    FarmVerification latestVerification =
-        farmVerificationRepository
-            .findFirstByFarmIdOrderByVerificationDateDesc(farm.getId())
-            .orElse(null);
-    List<VerificationEvidenceResponse> verificationEvidence =
-        latestVerification == null
-            ? List.of()
-            : verificationEvidenceRepository
-                .findByVerificationIdOrderByCreatedAtAsc(latestVerification.getId())
-                .stream()
-                .filter(evidence -> Boolean.TRUE.equals(evidence.getIsPublic()))
-                .map(VerificationEvidenceResponse::from)
-                .toList();
+    PublicVerificationResolver.PublicVerificationSnapshot publicVerification =
+        publicVerificationResolver.resolveForFarm(farm.getId());
 
     // Load farm media as stable public trace content.
     List<FarmMediaResponse> farmMedia =
@@ -164,8 +145,8 @@ public class PublicTraceCacheService {
         FarmerResponse.from(farmer),
         FarmResponse.from(farm),
         priceBreakdownRepository.findByBatchId(batch.getId()).map(PriceBreakdownResponse::from).orElse(null),
-        latestVerification == null ? null : FarmVerificationResponse.from(latestVerification),
-        verificationEvidence,
+        publicVerification.lastVerified(),
+        publicVerification.evidence(),
         farmMedia);
   }
 

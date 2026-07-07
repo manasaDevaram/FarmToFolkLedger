@@ -10,7 +10,6 @@ import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record CreateBatchRequest(
-    String batchCode,
     @NotNull UUID farmId,
     @NotNull UUID farmerId,
     @NotBlank String cropName,
@@ -21,6 +20,4 @@ public record CreateBatchRequest(
     @NotNull LocalDate receivedDate,
     @NotNull @PositiveOrZero BigDecimal farmerPricePerUnit,
     @NotNull PaymentStatus paymentStatus,
-    @NotNull @PositiveOrZero BigDecimal consumerPricePerUnit,
-    @NotNull @PositiveOrZero BigDecimal operationalCostPerUnit,
     @NotBlank String status) {}

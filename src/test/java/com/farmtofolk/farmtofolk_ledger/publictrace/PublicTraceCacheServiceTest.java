@@ -14,10 +14,8 @@ import com.farmtofolk.farmtofolk_ledger.media.FarmMediaRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
-import com.farmtofolk.farmtofolk_ledger.verification.FarmVerification;
-import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationRepository;
-import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidence;
-import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceRepository;
+import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,9 +37,7 @@ class PublicTraceCacheServiceTest {
 
   @Mock private FarmRepository farmRepository;
 
-  @Mock private FarmVerificationRepository farmVerificationRepository;
-
-  @Mock private VerificationEvidenceRepository verificationEvidenceRepository;
+  @Mock private PublicVerificationResolver publicVerificationResolver;
 
   @Mock private FarmMediaRepository farmMediaRepository;
 
@@ -57,7 +53,6 @@ class PublicTraceCacheServiceTest {
     UUID batchId = UUID.randomUUID();
     UUID farmerId = UUID.randomUUID();
     UUID farmId = UUID.randomUUID();
-    UUID verificationId = UUID.randomUUID();
 
     QrCode qrCode = new QrCode();
     qrCode.setBatchId(batchId);
@@ -75,19 +70,21 @@ class PublicTraceCacheServiceTest {
     ReflectionTestUtils.setField(farm, "id", farmId);
     farm.setFarmName("Public Farm");
 
-    FarmVerification verification = new FarmVerification();
-    ReflectionTestUtils.setField(verification, "id", verificationId);
-    verification.setFarmId(farmId);
-
-    VerificationEvidence publicEvidence = new VerificationEvidence();
-    publicEvidence.setVerificationId(verificationId);
-    publicEvidence.setFileUrl("https://example.com/public.jpg");
-    publicEvidence.setIsPublic(true);
-
-    VerificationEvidence privateEvidence = new VerificationEvidence();
-    privateEvidence.setVerificationId(verificationId);
-    privateEvidence.setFileUrl("https://example.com/private.jpg");
-    privateEvidence.setIsPublic(false);
+    VerificationEvidenceResponse publicEvidence =
+        new VerificationEvidenceResponse(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "IMAGE",
+            "https://example.com/public.jpg",
+            null,
+            null,
+            null,
+            null,
+            "Public evidence",
+            true,
+            null,
+            null,
+            null);
 
     FarmMedia publicMedia = new FarmMedia();
     publicMedia.setFarmId(farmId);
@@ -104,21 +101,97 @@ class PublicTraceCacheServiceTest {
     when(batchRepository.findById(batchId)).thenReturn(Optional.of(batch));
     when(farmerRepository.findById(farmerId)).thenReturn(Optional.of(farmer));
     when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
-    when(farmVerificationRepository.findFirstByFarmIdOrderByVerificationDateDesc(farmId))
-        .thenReturn(Optional.of(verification));
-    when(verificationEvidenceRepository.findByVerificationIdOrderByCreatedAtAsc(verificationId))
-        .thenReturn(List.of(publicEvidence, privateEvidence));
+    when(publicVerificationResolver.resolveForFarm(farmId))
+        .thenReturn(
+            new PublicVerificationResolver.PublicVerificationSnapshot(
+                new PublicTraceVerificationResponse(LocalDate.of(2026, 5, 17)),
+                List.of(publicEvidence)));
     when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId))
         .thenReturn(List.of(publicMedia, privateMedia));
     when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 
+    assertEquals(LocalDate.of(2026, 5, 17), stableData.lastVerified().verificationDate());
     assertEquals(1, stableData.verificationEvidence().size());
     assertEquals(
         "https://example.com/public.jpg", stableData.verificationEvidence().getFirst().fileUrl());
     assertEquals(1, stableData.farmMedia().size());
     assertEquals(
         "https://example.com/public-media.jpg", stableData.farmMedia().getFirst().mediaUrl());
+  }
+
+  @Test
+  void getStableDataSkipsPendingVerificationForPublicTrace() {
+    String publicToken = "public-token";
+    UUID batchId = UUID.randomUUID();
+    UUID farmerId = UUID.randomUUID();
+    UUID farmId = UUID.randomUUID();
+
+    QrCode qrCode = new QrCode();
+    qrCode.setBatchId(batchId);
+
+    Batch batch = new Batch();
+    ReflectionTestUtils.setField(batch, "id", batchId);
+    batch.setFarmerId(farmerId);
+    batch.setFarmId(farmId);
+
+    Farmer farmer = new Farmer();
+    ReflectionTestUtils.setField(farmer, "id", farmerId);
+
+    Farm farm = new Farm();
+    ReflectionTestUtils.setField(farm, "id", farmId);
+
+    when(qrCodeRepository.findByPublicTokenAndIsActiveTrue(publicToken))
+        .thenReturn(Optional.of(qrCode));
+    when(batchRepository.findById(batchId)).thenReturn(Optional.of(batch));
+    when(farmerRepository.findById(farmerId)).thenReturn(Optional.of(farmer));
+    when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
+    when(publicVerificationResolver.resolveForFarm(farmId))
+        .thenReturn(PublicVerificationResolver.PublicVerificationSnapshot.empty());
+    when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId)).thenReturn(List.of());
+    when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
+
+    CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
+
+    assertEquals(null, stableData.lastVerified());
+    assertEquals(0, stableData.verificationEvidence().size());
+  }
+
+  @Test
+  void getStableDataHidesVerifiedRecordWithoutPublicEvidence() {
+    String publicToken = "public-token";
+    UUID batchId = UUID.randomUUID();
+    UUID farmerId = UUID.randomUUID();
+    UUID farmId = UUID.randomUUID();
+
+    QrCode qrCode = new QrCode();
+    qrCode.setBatchId(batchId);
+
+    Batch batch = new Batch();
+    ReflectionTestUtils.setField(batch, "id", batchId);
+    batch.setFarmerId(farmerId);
+    batch.setFarmId(farmId);
+
+    Farmer farmer = new Farmer();
+    ReflectionTestUtils.setField(farmer, "id", farmerId);
+
+    Farm farm = new Farm();
+    ReflectionTestUtils.setField(farm, "id", farmId);
+
+    when(qrCodeRepository.findByPublicTokenAndIsActiveTrue(publicToken))
+        .thenReturn(Optional.of(qrCode));
+    when(batchRepository.findById(batchId)).thenReturn(Optional.of(batch));
+    when(farmerRepository.findById(farmerId)).thenReturn(Optional.of(farmer));
+    when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
+    when(publicVerificationResolver.resolveForFarm(farmId))
+        .thenReturn(PublicVerificationResolver.PublicVerificationSnapshot.empty());
+    when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId)).thenReturn(List.of());
+    when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
+
+    CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
+
+    assertEquals(null, stableData.lastVerified());
+    assertEquals(0, stableData.verificationEvidence().size());
   }
 }

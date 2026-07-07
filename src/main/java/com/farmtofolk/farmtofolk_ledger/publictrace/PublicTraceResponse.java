@@ -6,7 +6,6 @@ import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
 import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
-import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationResponse;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
 import java.util.List;
 
@@ -16,7 +15,7 @@ public record PublicTraceResponse(
     FarmerResponse farmer,
     FarmResponse farm,
     PriceBreakdownResponse priceBreakdown,
-    FarmVerificationResponse latestVerification,
+    PublicTraceVerificationResponse lastVerified,
     List<VerificationEvidenceResponse> verificationEvidence,
     List<FarmMediaResponse> farmMedia,
     List<TraceEventResponse> traceEvents) {}

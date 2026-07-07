@@ -6,12 +6,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
-import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.events.BatchUpdatedEvent;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
+import com.farmtofolk.farmtofolk_ledger.qr.QrCodeService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -32,6 +32,8 @@ class BatchServiceTest {
   @Mock private FarmerRepository farmerRepository;
 
   @Mock private DomainEventPublisher domainEventPublisher;
+
+  @Mock private QrCodeService qrCodeService;
 
   @InjectMocks private BatchService batchService;
 
@@ -63,7 +65,6 @@ class BatchServiceTest {
 
     CreateBatchRequest request =
         new CreateBatchRequest(
-            "BATCH-001",
             farmId,
             requestFarmerId,
             "Tomato",
@@ -74,8 +75,6 @@ class BatchServiceTest {
             LocalDate.now(),
             new BigDecimal("20"),
             com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
-            new BigDecimal("40"),
-            new BigDecimal("5"),
             "READY");
 
     assertThrows(BadRequestException.class, () -> batchService.createBatch(request));
@@ -97,7 +96,6 @@ class BatchServiceTest {
 
     CreateBatchRequest request =
         new CreateBatchRequest(
-            "BATCH-002",
             farmId,
             farmerId,
             "Tomato",
@@ -108,8 +106,6 @@ class BatchServiceTest {
             LocalDate.now(),
             new BigDecimal("20"),
             com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
-            new BigDecimal("40"),
-            new BigDecimal("5"),
             "READY");
 
     batchService.updateBatch(batchId, request);
@@ -118,18 +114,23 @@ class BatchServiceTest {
   }
 
   @Test
-  void createBatchRejectsDuplicateBatchCodeBeforeSaving() {
+  void createBatchGeneratesUniqueBatchCode() {
     UUID farmerId = UUID.randomUUID();
     UUID farmId = UUID.randomUUID();
     Farm farm = new Farm();
     farm.setFarmerId(farmerId);
+    Batch savedBatch = new Batch();
+    savedBatch.setBatchCode("FTF-BATCH-2026-000001");
+
     when(farmerRepository.existsById(farmerId)).thenReturn(true);
     when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
-    when(batchRepository.existsByBatchCode("BATCH-001")).thenReturn(true);
+    when(batchRepository.count()).thenReturn(0L);
+    when(batchRepository.existsByBatchCode("FTF-BATCH-2026-000001")).thenReturn(false);
+    when(batchRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(Batch.class)))
+        .thenReturn(savedBatch);
 
     CreateBatchRequest request =
         new CreateBatchRequest(
-            "BATCH-001",
             farmId,
             farmerId,
             "Tomato",
@@ -140,10 +141,10 @@ class BatchServiceTest {
             LocalDate.now(),
             new BigDecimal("20"),
             com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
-            new BigDecimal("40"),
-            new BigDecimal("5"),
             "READY");
 
-    assertThrows(ConflictException.class, () -> batchService.createBatch(request));
+    BatchResponse response = batchService.createBatch(request);
+
+    assertEquals("FTF-BATCH-2026-000001", response.batchCode());
   }
 }
