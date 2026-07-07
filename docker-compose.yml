@@ -1,5 +1,15 @@
+# Local dev (Docker Postgres):
+#   docker compose --profile local-db up -d --build
+#
+# Production (RDS — set DB_URL/DB_USERNAME/DB_PASSWORD in .env):
+#   docker compose up -d --build
+#
+# The "postgres" hostname below is a Docker network alias (not RDS).
+# For RDS, set DB_URL to your *.rds.amazonaws.com endpoint in .env.
+
 services:
   farmtofolk-postgres:
+    profiles: ["local-db"]
     image: postgres:17
     container_name: farmtofolk-postgres
     environment:
@@ -7,7 +17,7 @@ services:
       POSTGRES_USER: farmtofolk
       POSTGRES_PASSWORD: farmtofolk
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - farmtofolk-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -24,8 +34,6 @@ services:
   farmtofolk-redis:
     image: redis:7
     container_name: farmtofolk-redis
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -40,17 +48,15 @@ services:
     build: .
     container_name: farmtofolk-api
     depends_on:
-      farmtofolk-postgres:
-        condition: service_healthy
       farmtofolk-redis:
         condition: service_healthy
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/farmtofolk_ledger
-      DB_USERNAME: farmtofolk
-      DB_PASSWORD: farmtofolk
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JPA_DDL_AUTO: update
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/farmtofolk_ledger}
+      DB_USERNAME: ${DB_USERNAME:-farmtofolk}
+      DB_PASSWORD: ${DB_PASSWORD:-farmtofolk}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      JPA_DDL_AUTO: ${JPA_DDL_AUTO:-update}
       AWS_REGION: ${AWS_REGION:-ap-south-1}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-farmtofolk-ledger-dev}
       AWS_S3_PRESIGNED_EXPIRY_MINUTES: ${AWS_S3_PRESIGNED_EXPIRY_MINUTES:-15}
