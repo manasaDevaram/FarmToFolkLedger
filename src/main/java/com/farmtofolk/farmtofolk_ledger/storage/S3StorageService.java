@@ -26,7 +26,8 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 @Service
 public class S3StorageService implements StorageService {
 
-  private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+  private static final long MAX_IMAGE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+  private static final long MAX_VIDEO_FILE_SIZE_BYTES = 100 * 1024 * 1024;
   private static final Set<String> ALLOWED_CONTENT_TYPES =
       Set.of("image/jpeg", "image/png", "image/webp", "application/pdf");
 
@@ -149,7 +150,11 @@ public class S3StorageService implements StorageService {
       throw new BadRequestException("File must not be empty");
     }
 
-    if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+    long maxSize =
+        file.getContentType() != null && file.getContentType().startsWith("video/")
+            ? MAX_VIDEO_FILE_SIZE_BYTES
+            : MAX_IMAGE_FILE_SIZE_BYTES;
+    if (file.getSize() > maxSize) {
       throw new BadRequestException("File too large");
     }
 

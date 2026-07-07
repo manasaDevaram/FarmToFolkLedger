@@ -15,7 +15,7 @@ public record PublicTraceResponse(
     FarmerResponse farmer,
     FarmResponse farm,
     PriceBreakdownResponse priceBreakdown,
-    PublicTraceVerificationResponse lastVerified,
+    PublicTraceVerificationResponse verification,
     List<VerificationEvidenceResponse> verificationEvidence,
     List<FarmMediaResponse> farmMedia,
     List<TraceEventResponse> traceEvents) {}

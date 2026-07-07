@@ -42,10 +42,6 @@ public class PublicVerificationResolver {
             .map(VerificationEvidenceResponse::from)
             .toList();
 
-    if (publicEvidence.isEmpty()) {
-      return PublicVerificationSnapshot.empty();
-    }
-
     return new PublicVerificationSnapshot(
         PublicTraceVerificationResponse.from(verification), publicEvidence);
   }
@@ -55,14 +51,14 @@ public class PublicVerificationResolver {
   }
 
   public record PublicVerificationSnapshot(
-      PublicTraceVerificationResponse lastVerified, List<VerificationEvidenceResponse> evidence) {
+      PublicTraceVerificationResponse verification, List<VerificationEvidenceResponse> evidence) {
 
     static PublicVerificationSnapshot empty() {
       return new PublicVerificationSnapshot(null, List.of());
     }
 
     public boolean isVisibleOnPublicTrace() {
-      return lastVerified != null && !evidence.isEmpty();
+      return verification != null;
     }
   }
 }

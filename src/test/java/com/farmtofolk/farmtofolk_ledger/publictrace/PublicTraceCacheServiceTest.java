@@ -104,7 +104,14 @@ class PublicTraceCacheServiceTest {
     when(publicVerificationResolver.resolveForFarm(farmId))
         .thenReturn(
             new PublicVerificationResolver.PublicVerificationSnapshot(
-                new PublicTraceVerificationResponse(LocalDate.of(2026, 5, 17)),
+                new PublicTraceVerificationResponse(
+                    LocalDate.of(2026, 5, 17),
+                    "FIELD_VISIT",
+                    true,
+                    true,
+                    "{}",
+                    null,
+                    null),
                 List.of(publicEvidence)));
     when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId))
         .thenReturn(List.of(publicMedia, privateMedia));
@@ -112,7 +119,7 @@ class PublicTraceCacheServiceTest {
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 
-    assertEquals(LocalDate.of(2026, 5, 17), stableData.lastVerified().verificationDate());
+    assertEquals(LocalDate.of(2026, 5, 17), stableData.verification().verificationDate());
     assertEquals(1, stableData.verificationEvidence().size());
     assertEquals(
         "https://example.com/public.jpg", stableData.verificationEvidence().getFirst().fileUrl());
@@ -154,12 +161,12 @@ class PublicTraceCacheServiceTest {
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 
-    assertEquals(null, stableData.lastVerified());
+    assertEquals(null, stableData.verification());
     assertEquals(0, stableData.verificationEvidence().size());
   }
 
   @Test
-  void getStableDataHidesVerifiedRecordWithoutPublicEvidence() {
+  void getStableDataReturnsVerifiedRecordWithoutPublicEvidence() {
     String publicToken = "public-token";
     UUID batchId = UUID.randomUUID();
     UUID farmerId = UUID.randomUUID();
@@ -185,13 +192,23 @@ class PublicTraceCacheServiceTest {
     when(farmerRepository.findById(farmerId)).thenReturn(Optional.of(farmer));
     when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
     when(publicVerificationResolver.resolveForFarm(farmId))
-        .thenReturn(PublicVerificationResolver.PublicVerificationSnapshot.empty());
+        .thenReturn(
+            new PublicVerificationResolver.PublicVerificationSnapshot(
+                new PublicTraceVerificationResponse(
+                    LocalDate.of(2026, 5, 17),
+                    "FIELD_VISIT",
+                    true,
+                    true,
+                    "{}",
+                    null,
+                    null),
+                List.of()));
     when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId)).thenReturn(List.of());
     when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 
-    assertEquals(null, stableData.lastVerified());
+    assertEquals(LocalDate.of(2026, 5, 17), stableData.verification().verificationDate());
     assertEquals(0, stableData.verificationEvidence().size());
   }
 }

@@ -33,10 +33,8 @@ public class PublicTraceCacheConfig {
                 RedisSerializationContext.SerializationPair.fromSerializer(serializer));
     return builder -> {
       builder.withCacheConfiguration(
-            "publicTraceStable",
-            baseConfiguration.entryTtl(Duration.ofMinutes(10)));
-      builder.withCacheConfiguration(
-          "publicTraceFull", baseConfiguration.entryTtl(Duration.ofMinutes(2)));
+          "publicTraceStable",
+          baseConfiguration.entryTtl(Duration.ofMinutes(10)));
     };
   }
 

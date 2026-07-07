@@ -21,7 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class FarmMediaService {
 
   private static final Set<String> FARM_MEDIA_CONTENT_TYPES =
-      Set.of("image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime");
+      Set.of("image/jpeg", "image/png", "image/webp", "video/mp4", "video/quicktime", "video/webm");
 
   private final FarmMediaRepository farmMediaRepository;
   private final FarmRepository farmRepository;

@@ -29,7 +29,7 @@ public class FarmerService {
   private static final Set<String> PROFILE_PHOTO_CONTENT_TYPES =
       Set.of("image/jpeg", "image/png", "image/webp");
   private static final Set<String> INTRO_VIDEO_CONTENT_TYPES =
-      Set.of("video/mp4", "video/quicktime");
+      Set.of("video/mp4", "video/quicktime", "video/webm");
 
   private final FarmerRepository farmerRepository;
   private final StorageService storageService;
@@ -178,8 +178,12 @@ public class FarmerService {
     farmer.setDistrict(request.district());
     farmer.setState(request.state());
     farmer.setBio(request.bio());
-    farmer.setProfilePhotoUrl(request.profilePhotoUrl());
-    farmer.setIntroVideoUrl(request.introVideoUrl());
+    if (farmer.getProfilePhotoKey() == null) {
+      farmer.setProfilePhotoUrl(request.profilePhotoUrl());
+    }
+    if (farmer.getIntroVideoKey() == null) {
+      farmer.setIntroVideoUrl(request.introVideoUrl());
+    }
     farmer.setJoinedDate(request.joinedDate());
   }
 

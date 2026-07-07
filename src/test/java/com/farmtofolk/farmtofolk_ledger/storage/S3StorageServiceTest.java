@@ -1,12 +1,18 @@
 package com.farmtofolk.farmtofolk_ledger.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
+import java.io.ByteArrayInputStream;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -59,5 +65,29 @@ class S3StorageServiceTest {
   void leavesExternalLegacyUrlUntouched() {
     String external = "https://cdn.example.com/photo.png";
     assertEquals(external, service.generatePresignedUrl(external));
+  }
+
+  @Test
+  void rejectsVideoLargerThanConfiguredLimit() {
+    MultipartFile file = mock(MultipartFile.class);
+    when(file.isEmpty()).thenReturn(false);
+    when(file.getSize()).thenReturn(101L * 1024 * 1024);
+    when(file.getContentType()).thenReturn("video/mp4");
+
+    assertThrows(
+        BadRequestException.class,
+        () -> service.upload(file, "farmers/123/intro-video", Set.of("video/mp4")));
+  }
+
+  @Test
+  void allowsVideoUpToConfiguredLimit() throws Exception {
+    MultipartFile file = mock(MultipartFile.class);
+    when(file.isEmpty()).thenReturn(false);
+    when(file.getSize()).thenReturn(50L * 1024 * 1024);
+    when(file.getContentType()).thenReturn("video/mp4");
+    when(file.getOriginalFilename()).thenReturn("intro.mp4");
+    when(file.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
+
+    service.upload(file, "farmers/123/intro-video", Set.of("video/mp4", "video/webm"));
   }
 }

@@ -72,16 +72,11 @@ public class PublicTraceCacheService {
     this.cacheManager = cacheManager;
   }
 
-  @Cacheable(value = "publicTraceFull", key = "#publicToken", unless = "#result == null")
   public PublicTraceResponse getFullTrace(String publicToken, QrCode qrCode) {
     long startedAt = System.nanoTime();
-    Batch batch =
-        batchRepository
-            .findById(qrCode.getBatchId())
-            .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
-    CachedPublicTraceStableData stableData = loadStableData(batch);
+    CachedPublicTraceStableData stableData = getStableData(publicToken);
     List<TraceEventResponse> traceEvents =
-        traceEventRepository.findByBatchIdOrderByEventTimeAsc(batch.getId()).stream()
+        traceEventRepository.findByBatchIdOrderByEventTimeAsc(qrCode.getBatchId()).stream()
             .map(TraceEventResponse::from)
             .toList();
     PublicTraceResponse response =
@@ -91,7 +86,7 @@ public class PublicTraceCacheService {
             stableData.farmer().withPresignedUrls(storageService),
             stableData.farm(),
             stableData.priceBreakdown(),
-            stableData.lastVerified(),
+            stableData.verification(),
             stableData.verificationEvidence().stream()
                 .map(evidence -> evidence.withPresignedUrl(storageService))
                 .toList(),
@@ -145,12 +140,12 @@ public class PublicTraceCacheService {
         FarmerResponse.from(farmer),
         FarmResponse.from(farm),
         priceBreakdownRepository.findByBatchId(batch.getId()).map(PriceBreakdownResponse::from).orElse(null),
-        publicVerification.lastVerified(),
+        publicVerification.verification(),
         publicVerification.evidence(),
         farmMedia);
   }
 
-  @CacheEvict(value = {"publicTraceFull", "publicTraceStable"}, key = "#publicToken")
+  @CacheEvict(value = "publicTraceStable", key = "#publicToken")
   public void evictStableData(String publicToken) {
     // Explicit hook for future write flows that need to invalidate public trace stable data.
   }
@@ -165,7 +160,7 @@ public class PublicTraceCacheService {
 
   public void evictAllPublicTraceData() {
     try {
-      for (String cacheName : List.of("publicTraceFull", "publicTraceStable")) {
+      for (String cacheName : List.of("publicTraceStable")) {
         Cache cache = cacheManager.getCache(cacheName);
         if (cache != null) cache.clear();
       }
@@ -188,7 +183,7 @@ public class PublicTraceCacheService {
 
   private void evictStableDataSafely(String publicToken) {
     try {
-      for (String cacheName : List.of("publicTraceFull", "publicTraceStable")) {
+      for (String cacheName : List.of("publicTraceStable")) {
         Cache cache = cacheManager.getCache(cacheName);
         if (cache != null) {
           cache.evict(publicToken);

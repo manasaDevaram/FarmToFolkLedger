@@ -1,7 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.publictrace;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.when;
 
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerification;
@@ -56,18 +55,43 @@ class PublicVerificationResolverTest {
     PublicVerificationResolver.PublicVerificationSnapshot snapshot =
         publicVerificationResolver.resolveForFarm(farmId);
 
-    assertEquals(LocalDate.of(2026, 5, 17), snapshot.lastVerified().verificationDate());
+    assertEquals(LocalDate.of(2026, 5, 17), snapshot.verification().verificationDate());
     assertEquals(1, snapshot.evidence().size());
   }
 
   @Test
-  void resolveForFarmHidesVerifiedRecordWithoutPublicEvidence() {
+  void resolveForFarmReturnsVerifiedRecordEvenWithoutPublicEvidence() {
+    UUID farmId = UUID.randomUUID();
+    UUID verificationId = UUID.randomUUID();
+
+    FarmVerification verification = new FarmVerification();
+    ReflectionTestUtils.setField(verification, "id", verificationId);
+    verification.setFarmId(farmId);
+    verification.setStatus("VERIFIED");
+    verification.setVerificationDate(LocalDate.of(2026, 5, 17));
+
+    when(farmVerificationRepository.findFirstByFarmIdAndStatusIgnoreCaseInOrderByVerificationDateDesc(
+            farmId, List.of("VERIFIED", "APPROVED")))
+        .thenReturn(Optional.of(verification));
+    when(verificationEvidenceRepository.findByVerificationIdOrderByCreatedAtAsc(verificationId))
+        .thenReturn(List.of());
+
+    PublicVerificationResolver.PublicVerificationSnapshot snapshot =
+        publicVerificationResolver.resolveForFarm(farmId);
+
+    assertEquals(LocalDate.of(2026, 5, 17), snapshot.verification().verificationDate());
+    assertEquals(0, snapshot.evidence().size());
+  }
+
+  @Test
+  void resolveForFarmFiltersOutPrivateEvidence() {
     UUID farmId = UUID.randomUUID();
     UUID verificationId = UUID.randomUUID();
 
     FarmVerification verification = new FarmVerification();
     ReflectionTestUtils.setField(verification, "id", verificationId);
     verification.setStatus("VERIFIED");
+    verification.setVerificationDate(LocalDate.of(2026, 5, 17));
 
     VerificationEvidence privateEvidence = new VerificationEvidence();
     privateEvidence.setVerificationId(verificationId);
@@ -82,7 +106,7 @@ class PublicVerificationResolverTest {
     PublicVerificationResolver.PublicVerificationSnapshot snapshot =
         publicVerificationResolver.resolveForFarm(farmId);
 
-    assertNull(snapshot.lastVerified());
+    assertEquals(LocalDate.of(2026, 5, 17), snapshot.verification().verificationDate());
     assertEquals(0, snapshot.evidence().size());
   }
 }
