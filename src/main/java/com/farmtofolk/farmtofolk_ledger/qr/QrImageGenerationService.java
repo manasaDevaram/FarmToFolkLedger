@@ -46,6 +46,10 @@ public class QrImageGenerationService {
         qrImagePersistenceService.updateImageUrl(event.qrCodeId(), storedFile.objectKey());
     }
 
+    public byte[] generateForPublicToken(String publicToken) {
+        return generatePng(publicTraceBaseUrl + "/" + publicToken);
+    }
+
     private byte[] generatePng(String value) {
         try {
             BitMatrix matrix = new QRCodeWriter().encode(
