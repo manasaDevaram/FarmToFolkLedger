@@ -36,6 +36,9 @@ public class Farm {
 
   private BigDecimal longitude;
 
+  @Column(name = "altitude_meters", precision = 10, scale = 2)
+  private BigDecimal altitudeMeters;
+
   @Column(name = "size_acres")
   private BigDecimal sizeAcres;
 
@@ -119,6 +122,10 @@ public class Farm {
   public void setLongitude(BigDecimal longitude) {
     this.longitude = longitude;
   }
+
+  public BigDecimal getAltitudeMeters() { return altitudeMeters; }
+
+  public void setAltitudeMeters(BigDecimal altitudeMeters) { this.altitudeMeters = altitudeMeters; }
 
   public BigDecimal getSizeAcres() {
     return sizeAcres;

@@ -123,6 +123,7 @@ public class FarmService {
     farm.setState(request.state());
     farm.setLatitude(request.latitude());
     farm.setLongitude(request.longitude());
+    farm.setAltitudeMeters(request.altitudeMeters());
     farm.setSizeAcres(request.sizeAcres());
     farm.setFarmingType(request.farmingType());
   }

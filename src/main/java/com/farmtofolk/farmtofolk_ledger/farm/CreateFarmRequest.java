@@ -14,5 +14,6 @@ public record CreateFarmRequest(
     @NotBlank String state,
     BigDecimal latitude,
     BigDecimal longitude,
+    BigDecimal altitudeMeters,
     @Positive BigDecimal sizeAcres,
     @NotBlank String farmingType) {}
