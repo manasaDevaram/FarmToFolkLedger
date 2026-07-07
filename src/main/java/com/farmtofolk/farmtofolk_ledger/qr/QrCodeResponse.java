@@ -2,6 +2,7 @@ package com.farmtofolk.farmtofolk_ledger.qr;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 
 public record QrCodeResponse(
     UUID id,
@@ -23,5 +24,13 @@ public record QrCodeResponse(
         qrCode.getIsActive(),
         qrCode.getGeneratedAt(),
         qrCode.getExpiresAt());
+  }
+
+  public static QrCodeResponse from(QrCode qrCode, StorageService storageService) {
+    QrCodeResponse response = from(qrCode);
+    return new QrCodeResponse(
+        response.id(), response.batchId(), response.publicToken(),
+        storageService.generatePresignedUrl(response.qrImageUrl()), response.qrType(),
+        response.isActive(), response.generatedAt(), response.expiresAt());
   }
 }

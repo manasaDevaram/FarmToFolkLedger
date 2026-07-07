@@ -3,6 +3,7 @@ package com.farmtofolk.farmtofolk_ledger.qr;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.QrCodeCreatedEvent;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,6 +27,8 @@ class QrCodeServiceTest {
     private BatchRepository batchRepository;
     @Mock
     private DomainEventPublisher domainEventPublisher;
+    @Mock
+    private StorageService storageService;
 
     @InjectMocks
     private QrCodeService qrCodeService;

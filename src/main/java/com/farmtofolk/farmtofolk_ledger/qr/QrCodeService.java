@@ -4,6 +4,7 @@ import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.QrCodeCreatedEvent;
+import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -18,14 +19,17 @@ public class QrCodeService {
   private final QrCodeRepository qrCodeRepository;
   private final BatchRepository batchRepository;
   private final DomainEventPublisher domainEventPublisher;
+  private final StorageService storageService;
 
   public QrCodeService(
       QrCodeRepository qrCodeRepository,
       BatchRepository batchRepository,
-      DomainEventPublisher domainEventPublisher) {
+      DomainEventPublisher domainEventPublisher,
+      StorageService storageService) {
     this.qrCodeRepository = qrCodeRepository;
     this.batchRepository = batchRepository;
     this.domainEventPublisher = domainEventPublisher;
+    this.storageService = storageService;
   }
 
   public QrCodeResponse createQrCode(UUID batchId) {
@@ -41,7 +45,7 @@ public class QrCodeService {
               if (qrCode.getQrImageUrl() == null || qrCode.getQrImageUrl().isBlank()) {
                 publishGeneration(qrCode);
               }
-              return QrCodeResponse.from(qrCode);
+              return QrCodeResponse.from(qrCode, storageService);
             })
         .orElseGet(() -> createNewQrCode(batchId));
   }
@@ -56,7 +60,7 @@ public class QrCodeService {
             .findFirstByBatchIdAndIsActiveTrue(batchId)
             .orElseThrow(
                 () -> new ResourceNotFoundException("No active QR code found for this batch"));
-    return QrCodeResponse.from(qrCode);
+    return QrCodeResponse.from(qrCode, storageService);
   }
 
   private QrCodeResponse createNewQrCode(UUID batchId) {
@@ -70,7 +74,7 @@ public class QrCodeService {
 
     QrCode savedQrCode = qrCodeRepository.save(qrCode);
     publishGeneration(savedQrCode);
-    return QrCodeResponse.from(savedQrCode);
+    return QrCodeResponse.from(savedQrCode, storageService);
   }
 
   private void publishGeneration(QrCode qrCode) {
