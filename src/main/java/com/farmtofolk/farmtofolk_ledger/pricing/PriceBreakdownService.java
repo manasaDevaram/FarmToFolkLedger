@@ -101,6 +101,8 @@ public class PriceBreakdownService {
     // Keep request-to-entity field mapping in one place.
     priceBreakdown.setConsumerPrice(request.consumerPrice());
     priceBreakdown.setFarmerPrice(request.farmerPrice());
+    priceBreakdown.setWastageCost(request.wastageCost());
+    priceBreakdown.setPackagingCost(request.packagingCost());
     priceBreakdown.setOperationalCost(request.operationalCost());
     priceBreakdown.setCurrency(request.currency());
     priceBreakdown.setPriceUnit(request.priceUnit());

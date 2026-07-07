@@ -10,16 +10,18 @@ public record PublicBatchTraceResponse(
     String batchCode,
     String cropName,
     String variety,
+    BigDecimal quantityReceived,
     String unit,
     LocalDate harvestDate,
+    LocalDate receivedDate,
     String status,
     BigDecimal farmerPricePerUnit,
     BigDecimal consumerPricePerUnit,
     BigDecimal farmToConsumerCostPerUnit) {
   public static PublicBatchTraceResponse from(BatchResponse batch) {
     return new PublicBatchTraceResponse(
-        batch.id(), batch.batchCode(), batch.cropName(), batch.variety(), batch.unit(),
-        batch.harvestDate(), batch.status(), batch.farmerPricePerUnit(),
+        batch.id(), batch.batchCode(), batch.cropName(), batch.variety(), batch.quantityReceived(),
+        batch.unit(), batch.harvestDate(), batch.receivedDate(), batch.status(), batch.farmerPricePerUnit(),
         batch.consumerPricePerUnit(), batch.operationalCostPerUnit());
   }
 }

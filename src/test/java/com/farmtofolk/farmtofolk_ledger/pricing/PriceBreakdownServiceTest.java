@@ -33,7 +33,7 @@ class PriceBreakdownServiceTest {
         .thenReturn(Optional.of(new PriceBreakdown()));
 
     CreatePriceBreakdownRequest request =
-        new CreatePriceBreakdownRequest(null, null, null, "INR", "kg");
+        new CreatePriceBreakdownRequest(null, null, null, null, null, "INR", "kg");
 
     assertThrows(
         ConflictException.class,

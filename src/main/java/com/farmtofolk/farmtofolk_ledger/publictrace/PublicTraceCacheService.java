@@ -15,6 +15,8 @@ import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
+import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
+import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventResponse;
@@ -48,6 +50,7 @@ public class PublicTraceCacheService {
   private final VerificationEvidenceRepository verificationEvidenceRepository;
   private final FarmMediaRepository farmMediaRepository;
   private final TraceEventRepository traceEventRepository;
+  private final PriceBreakdownRepository priceBreakdownRepository;
   private final StorageService storageService;
   private final CacheManager cacheManager;
 
@@ -60,6 +63,7 @@ public class PublicTraceCacheService {
       VerificationEvidenceRepository verificationEvidenceRepository,
       FarmMediaRepository farmMediaRepository,
       TraceEventRepository traceEventRepository,
+      PriceBreakdownRepository priceBreakdownRepository,
       StorageService storageService,
       CacheManager cacheManager) {
     this.qrCodeRepository = qrCodeRepository;
@@ -70,6 +74,7 @@ public class PublicTraceCacheService {
     this.verificationEvidenceRepository = verificationEvidenceRepository;
     this.farmMediaRepository = farmMediaRepository;
     this.traceEventRepository = traceEventRepository;
+    this.priceBreakdownRepository = priceBreakdownRepository;
     this.storageService = storageService;
     this.cacheManager = cacheManager;
   }
@@ -92,6 +97,7 @@ public class PublicTraceCacheService {
             PublicBatchTraceResponse.from(stableData.batch()),
             stableData.farmer().withPresignedUrls(storageService),
             stableData.farm(),
+            stableData.priceBreakdown(),
             stableData.latestVerification(),
             stableData.verificationEvidence().stream()
                 .map(evidence -> evidence.withPresignedUrl(storageService))
@@ -157,6 +163,7 @@ public class PublicTraceCacheService {
         BatchResponse.from(batch),
         FarmerResponse.from(farmer),
         FarmResponse.from(farm),
+        priceBreakdownRepository.findByBatchId(batch.getId()).map(PriceBreakdownResponse::from).orElse(null),
         latestVerification == null ? null : FarmVerificationResponse.from(latestVerification),
         verificationEvidence,
         farmMedia);

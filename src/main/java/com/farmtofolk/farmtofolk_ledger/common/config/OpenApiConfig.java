@@ -13,7 +13,7 @@ public class OpenApiConfig {
     return new OpenAPI()
         .info(
             new Info()
-                .title("FarmToFolk Ledger API")
+                .title("Namma Trace Ledger API")
                 .version("v1")
                 .description(
                     "Backend APIs for admin, verifier, and public traceability workflows."));

@@ -8,6 +8,8 @@ import java.math.BigDecimal;
 public record CreatePriceBreakdownRequest(
     @NotNull @PositiveOrZero BigDecimal consumerPrice,
     @NotNull @PositiveOrZero BigDecimal farmerPrice,
+    @NotNull @PositiveOrZero BigDecimal wastageCost,
+    @NotNull @PositiveOrZero BigDecimal packagingCost,
     @NotNull @PositiveOrZero BigDecimal operationalCost,
     @NotBlank String currency,
     @NotBlank String priceUnit) {}

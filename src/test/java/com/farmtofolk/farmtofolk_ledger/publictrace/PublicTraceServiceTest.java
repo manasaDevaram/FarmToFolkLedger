@@ -41,7 +41,7 @@ class PublicTraceServiceTest {
     qrCode.setPublicToken(token);
     qrCode.setIsActive(true);
     PublicTraceResponse cachedResponse =
-        new PublicTraceResponse(null, null, null, null, null, List.of(), List.of(), List.of());
+        new PublicTraceResponse(null, null, null, null, null, null, List.of(), List.of(), List.of());
     when(qrCodeRepository.findByPublicToken(token)).thenReturn(Optional.of(qrCode));
     when(publicTraceCacheService.getFullTrace(token, qrCode)).thenReturn(cachedResponse);
 
@@ -75,7 +75,7 @@ class PublicTraceServiceTest {
     qrCode.setPublicToken(token);
     qrCode.setIsActive(true);
     PublicTraceResponse cachedResponse =
-        new PublicTraceResponse(null, null, null, null, null, List.of(), List.of(), List.of());
+        new PublicTraceResponse(null, null, null, null, null, null, List.of(), List.of(), List.of());
     when(qrCodeRepository.findByPublicToken(token)).thenReturn(Optional.of(qrCode));
     when(publicTraceCacheService.getFullTrace(token, qrCode)).thenReturn(cachedResponse);
     doThrow(new IllegalStateException("executor full"))

@@ -116,7 +116,7 @@ class SecurityAccessTest {
   }
 
   @Test
-  void fieldOfficerCannotUseAdminOrAdminOnlyBatchWrites() throws Exception {
+  void fieldOfficerCanUseQrAndPriceWritesButNotAdminOnlyEndpoints() throws Exception {
     User fieldOfficer = new User();
     fieldOfficer.setName("Field Officer");
     fieldOfficer.setPhone("9876543213");
@@ -136,12 +136,12 @@ class SecurityAccessTest {
     mockMvc
         .perform(
             post("/api/batches/{batchId}/qr-code", batchId).header("Authorization", authorization))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isNotFound());
     mockMvc
         .perform(
             post("/api/batches/{batchId}/price-breakdown", batchId)
                 .header("Authorization", authorization))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isBadRequest());
     mockMvc
         .perform(
             post("/api/batches/{batchId}/procurement", batchId)
