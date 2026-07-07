@@ -9,6 +9,7 @@ import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
+import com.farmtofolk.farmtofolk_ledger.qr.QrCodeService;
 import java.util.List;
 import java.math.BigDecimal;
 import java.util.Map;
@@ -27,16 +28,19 @@ public class BatchService {
   private final FarmRepository farmRepository;
   private final FarmerRepository farmerRepository;
   private final DomainEventPublisher domainEventPublisher;
+  private final QrCodeService qrCodeService;
 
   public BatchService(
       BatchRepository batchRepository,
       FarmRepository farmRepository,
       FarmerRepository farmerRepository,
-      DomainEventPublisher domainEventPublisher) {
+      DomainEventPublisher domainEventPublisher,
+      QrCodeService qrCodeService) {
     this.batchRepository = batchRepository;
     this.farmRepository = farmRepository;
     this.farmerRepository = farmerRepository;
     this.domainEventPublisher = domainEventPublisher;
+    this.qrCodeService = qrCodeService;
   }
 
   public BatchResponse createBatch(CreateBatchRequest request) {
@@ -53,7 +57,9 @@ public class BatchService {
     batch.initializeInventory();
 
     // Save the batch and return API-friendly response data.
-    Batch savedBatch = batchRepository.save(batch);
+    Batch savedBatch = batchRepository.saveAndFlush(batch);
+    // Every batch is traceable immediately. The QR image itself is generated asynchronously.
+    qrCodeService.createQrCode(savedBatch.getId());
     return BatchResponse.from(savedBatch);
   }
 

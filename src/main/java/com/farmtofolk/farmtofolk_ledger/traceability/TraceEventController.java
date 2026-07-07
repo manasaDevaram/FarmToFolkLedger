@@ -31,4 +31,9 @@ public class TraceEventController {
   public List<TraceEventResponse> getTraceEventsForBatch(@PathVariable UUID batchId) {
     return traceEventService.getTraceEventsForBatch(batchId);
   }
+
+  @GetMapping("/api/trace-event-types")
+  public List<String> getTraceEventTypes() {
+    return traceEventService.getEventTypes();
+  }
 }

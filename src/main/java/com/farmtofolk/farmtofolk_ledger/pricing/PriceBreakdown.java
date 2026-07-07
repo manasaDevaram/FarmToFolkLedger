@@ -33,6 +33,12 @@ public class PriceBreakdown {
   @Column(name = "operational_cost", precision = 19, scale = 2)
   private BigDecimal operationalCost;
 
+  @Column(name = "wastage_cost", precision = 19, scale = 2)
+  private BigDecimal wastageCost = BigDecimal.ZERO;
+
+  @Column(name = "packaging_cost", precision = 19, scale = 2)
+  private BigDecimal packagingCost = BigDecimal.ZERO;
+
   private String currency = "INR";
 
   @Column(name = "price_unit")
@@ -92,9 +98,24 @@ public class PriceBreakdown {
     this.operationalCost = operationalCost;
   }
 
+  public BigDecimal getWastageCost() { return wastageCost; }
+
+  public void setWastageCost(BigDecimal wastageCost) { this.wastageCost = wastageCost; }
+
+  public BigDecimal getPackagingCost() { return packagingCost; }
+
+  public void setPackagingCost(BigDecimal packagingCost) { this.packagingCost = packagingCost; }
+
   public BigDecimal getMargin() {
-    return consumerPrice.subtract(farmerPrice).subtract(operationalCost);
+    if (consumerPrice == null || farmerPrice == null) return null;
+    return consumerPrice
+        .subtract(farmerPrice)
+        .subtract(zero(wastageCost))
+        .subtract(zero(packagingCost))
+        .subtract(zero(operationalCost));
   }
+
+  private BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
 
   public String getCurrency() {
     return currency;

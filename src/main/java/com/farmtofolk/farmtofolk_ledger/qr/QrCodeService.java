@@ -35,7 +35,14 @@ public class QrCodeService {
     // Return the existing active QR code if this batch already has one.
     return qrCodeRepository
         .findFirstByBatchIdAndIsActiveTrue(batchId)
-        .map(QrCodeResponse::from)
+        .map(
+            qrCode -> {
+              // POST is idempotent, but also acts as a retry while image generation is pending.
+              if (qrCode.getQrImageUrl() == null || qrCode.getQrImageUrl().isBlank()) {
+                publishGeneration(qrCode);
+              }
+              return QrCodeResponse.from(qrCode);
+            })
         .orElseGet(() -> createNewQrCode(batchId));
   }
 
@@ -62,10 +69,13 @@ public class QrCodeService {
     qrCode.setGeneratedAt(LocalDateTime.now());
 
     QrCode savedQrCode = qrCodeRepository.save(qrCode);
-    domainEventPublisher.publishAfterCommit(
-        new QrCodeCreatedEvent(
-            savedQrCode.getId(), savedQrCode.getBatchId(), savedQrCode.getPublicToken()));
+    publishGeneration(savedQrCode);
     return QrCodeResponse.from(savedQrCode);
+  }
+
+  private void publishGeneration(QrCode qrCode) {
+    domainEventPublisher.publishAfterCommit(
+        new QrCodeCreatedEvent(qrCode.getId(), qrCode.getBatchId(), qrCode.getPublicToken()));
   }
 
   private void verifyBatchExists(UUID batchId) {

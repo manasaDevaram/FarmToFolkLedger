@@ -132,7 +132,7 @@ public class AdminUserService {
 
   private void validateInternalRole(UserRole role) {
     if (!INTERNAL_ROLES.contains(role)) {
-      throw new BadRequestException("Invalid role for internal user creation");
+      throw new BadRequestException("Only admin and field officer accounts can be created here");
     }
   }
 

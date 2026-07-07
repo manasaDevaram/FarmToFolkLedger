@@ -13,6 +13,7 @@ import com.farmtofolk.farmtofolk_ledger.media.FarmMedia;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
+import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerification;
 import com.farmtofolk.farmtofolk_ledger.verification.FarmVerificationRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidence;
@@ -43,6 +44,8 @@ class PublicTraceCacheServiceTest {
   @Mock private VerificationEvidenceRepository verificationEvidenceRepository;
 
   @Mock private FarmMediaRepository farmMediaRepository;
+
+  @Mock private PriceBreakdownRepository priceBreakdownRepository;
 
   @Mock private org.springframework.cache.CacheManager cacheManager;
 
@@ -107,6 +110,7 @@ class PublicTraceCacheServiceTest {
         .thenReturn(List.of(publicEvidence, privateEvidence));
     when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId))
         .thenReturn(List.of(publicMedia, privateMedia));
+    when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 

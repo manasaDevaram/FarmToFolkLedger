@@ -22,7 +22,7 @@ public class AdminBootstrap implements ApplicationRunner {
       UserRepository userRepository,
       PasswordEncoder passwordEncoder,
       @Value("${app.bootstrap.admin.enabled:false}") boolean enabled,
-      @Value("${app.bootstrap.admin.name:FarmToFolk Admin}") String name,
+      @Value("${app.bootstrap.admin.name:Namma Trace Admin}") String name,
       @Value("${app.bootstrap.admin.phone:}") String phone,
       @Value("${app.bootstrap.admin.email:}") String email,
       @Value("${app.bootstrap.admin.password:}") String password) {
