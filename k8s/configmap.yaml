@@ -1,0 +1,19 @@
+# Non-sensitive env vars (safe to commit). Edit values before apply.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: farmtofolk
+data:
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  JPA_DDL_AUTO: "validate"
+  AWS_REGION: "ap-south-1"
+  AWS_S3_BUCKET: "your-s3-bucket-name"
+  AWS_S3_PRESIGNED_EXPIRY_MINUTES: "15"
+  JWT_EXPIRATION_MINUTES: "480"
+  BOOTSTRAP_ADMIN_ENABLED: "false"
+  BOOTSTRAP_ADMIN_NAME: "FarmToFolk Admin"
+  BOOTSTRAP_ADMIN_PHONE: ""
+  BOOTSTRAP_ADMIN_EMAIL: ""
+  BOOTSTRAP_ADMIN_PASSWORD: ""
