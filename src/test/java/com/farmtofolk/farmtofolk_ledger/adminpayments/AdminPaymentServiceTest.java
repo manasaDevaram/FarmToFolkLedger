@@ -9,16 +9,13 @@ import static org.mockito.Mockito.when;
 
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
+import com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurement;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementRepository;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class AdminPaymentServiceTest {
 
-  @Mock BatchProcurementRepository procurementRepository;
   @Mock BatchRepository batchRepository;
   @Mock FarmerRepository farmerRepository;
   @Mock FarmRepository farmRepository;
@@ -70,22 +66,20 @@ class AdminPaymentServiceTest {
   }
 
   @Test
-  void paymentPatchOnlyChangesStatus() {
-    UUID procurementId = UUID.randomUUID();
-    BatchProcurement procurement = mock(BatchProcurement.class);
-    when(procurementRepository.findById(procurementId)).thenReturn(Optional.of(procurement));
-    when(procurementRepository.save(procurement)).thenReturn(procurement);
+  void batchPaymentPatchOnlyChangesStatus() {
+    UUID batchId = UUID.randomUUID();
+    Batch batch = mock(Batch.class);
+    when(batchRepository.findById(batchId)).thenReturn(Optional.of(batch));
+    when(batchRepository.save(batch)).thenReturn(batch);
 
-    service()
-        .updatePaymentStatus(procurementId, new UpdatePaymentStatusRequest(PaymentStatus.PAID));
+    service().updateBatchPaymentStatus(batchId, new UpdatePaymentStatusRequest(PaymentStatus.PAID));
 
-    verify(procurement).setPaymentStatus(PaymentStatus.PAID);
-    verify(procurementRepository).save(procurement);
+    verify(batch).setPaymentStatus(PaymentStatus.PAID);
+    verify(batchRepository).save(batch);
   }
 
   private AdminPaymentService service() {
-    return new AdminPaymentService(
-        procurementRepository, batchRepository, farmerRepository, farmRepository);
+    return new AdminPaymentService(batchRepository, farmerRepository, farmRepository);
   }
 
   private Fixture fixture(UUID farmerId) {
@@ -96,10 +90,12 @@ class AdminPaymentServiceTest {
     when(firstBatch.getFarmerPricePerUnit()).thenReturn(new BigDecimal("40"));
     when(firstBatch.getTotalFarmerAmount()).thenReturn(new BigDecimal("2400"));
     when(firstBatch.getPaymentStatus()).thenReturn(PaymentStatus.PAID);
+    when(firstBatch.getCurrency()).thenReturn("INR");
     when(secondBatch.getQuantityReceived()).thenReturn(new BigDecimal("30"));
     when(secondBatch.getFarmerPricePerUnit()).thenReturn(new BigDecimal("40"));
     when(secondBatch.getTotalFarmerAmount()).thenReturn(new BigDecimal("1200"));
     when(secondBatch.getPaymentStatus()).thenReturn(PaymentStatus.UNPAID);
+    when(secondBatch.getCurrency()).thenReturn("INR");
     Farmer farmer = mock(Farmer.class);
     when(farmer.getId()).thenReturn(farmerId);
     when(farmer.getName()).thenReturn("Ramesh");

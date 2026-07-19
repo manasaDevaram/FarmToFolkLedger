@@ -5,10 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
-import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
-import com.farmtofolk.farmtofolk_ledger.common.transaction.AfterCommitExecutor;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
-import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.*;
 import java.util.Optional;
 import java.util.Set;
@@ -28,21 +25,17 @@ class VerificationEvidenceServiceTest {
 
   @Mock VerificationEvidenceRepository evidenceRepository;
   @Mock FarmVerificationRepository verificationRepository;
-  @Mock PublicTraceCacheService cacheService;
   @Mock StorageService storageService;
   @Mock ThumbnailService thumbnailService;
   @Mock FileHashService fileHashService;
   @Mock CurrentUserService currentUserService;
-  @Mock BlockchainProofService blockchainProofService;
-  @Mock AfterCommitExecutor afterCommitExecutor;
   @Mock DomainEventPublisher domainEventPublisher;
   @Mock PlatformTransactionManager transactionManager;
 
   @Test
-  void uploadAttributesActorHashesBytesAndCreatesPendingProof() {
+  void uploadAttributesActorAndHashesBytes() {
     UUID verificationId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
-    UUID evidenceId = UUID.randomUUID();
     FarmVerification verification = new FarmVerification();
     MockMultipartFile file =
         new MockMultipartFile("file", "photo.jpg", "image/jpeg", "photo".getBytes());
@@ -55,12 +48,7 @@ class VerificationEvidenceServiceTest {
                 "key", "https://example.com/photo.jpg", "photo.jpg", "image/jpeg", 5L));
     when(currentUserService.getCurrentUserId()).thenReturn(userId);
     when(evidenceRepository.save(any(VerificationEvidence.class)))
-        .thenAnswer(
-            invocation -> {
-              VerificationEvidence evidence = invocation.getArgument(0);
-              ReflectionTestUtils.setField(evidence, "id", evidenceId);
-              return evidence;
-            });
+        .thenAnswer(invocation -> invocation.getArgument(0));
     VerificationEvidenceService service =
         new VerificationEvidenceService(
             evidenceRepository,
@@ -69,7 +57,6 @@ class VerificationEvidenceServiceTest {
             thumbnailService,
             fileHashService,
             currentUserService,
-            blockchainProofService,
             domainEventPublisher,
             transactionManager);
 
@@ -81,11 +68,10 @@ class VerificationEvidenceServiceTest {
     assertEquals("abc123", captor.getValue().getFileHash());
     assertEquals(userId, captor.getValue().getUploadedByUserId());
     assertNotNull(captor.getValue().getCapturedAt());
-    verify(blockchainProofService).createPendingEvidenceProof(evidenceId, "abc123");
   }
 
   @Test
-  void urlOnlyEvidenceUsesServerActorAndDoesNotCreateBlockchainProof() {
+  void urlOnlyEvidenceUsesServerActor() {
     UUID verificationId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     FarmVerification verification = new FarmVerification();
@@ -101,7 +87,6 @@ class VerificationEvidenceServiceTest {
             thumbnailService,
             fileHashService,
             currentUserService,
-            blockchainProofService,
             domainEventPublisher,
             transactionManager);
 
@@ -116,7 +101,6 @@ class VerificationEvidenceServiceTest {
     assertNull(captor.getValue().getFileHash());
     assertEquals(userId, captor.getValue().getUploadedByUserId());
     assertNotNull(captor.getValue().getCapturedAt());
-    verifyNoInteractions(blockchainProofService);
   }
 
   @Test
@@ -143,7 +127,6 @@ class VerificationEvidenceServiceTest {
             thumbnailService,
             fileHashService,
             currentUserService,
-            blockchainProofService,
             domainEventPublisher,
             transactionManager);
 
@@ -152,6 +135,5 @@ class VerificationEvidenceServiceTest {
         () -> service.uploadVerificationEvidence(verificationId, file, null, true));
 
     verify(storageService).delete("uploaded-key");
-    verifyNoInteractions(blockchainProofService);
   }
 }

@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
-
 public record BatchListResponse(
     UUID id,
     String batchCode,

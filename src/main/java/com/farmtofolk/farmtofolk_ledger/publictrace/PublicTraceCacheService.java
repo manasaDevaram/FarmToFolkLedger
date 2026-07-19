@@ -15,7 +15,6 @@ import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
 import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownResponse;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
@@ -45,7 +44,6 @@ public class PublicTraceCacheService {
   private final PublicVerificationResolver publicVerificationResolver;
   private final FarmMediaRepository farmMediaRepository;
   private final TraceEventRepository traceEventRepository;
-  private final PriceBreakdownRepository priceBreakdownRepository;
   private final StorageService storageService;
   private final CacheManager cacheManager;
 
@@ -57,7 +55,6 @@ public class PublicTraceCacheService {
       PublicVerificationResolver publicVerificationResolver,
       FarmMediaRepository farmMediaRepository,
       TraceEventRepository traceEventRepository,
-      PriceBreakdownRepository priceBreakdownRepository,
       StorageService storageService,
       CacheManager cacheManager) {
     this.qrCodeRepository = qrCodeRepository;
@@ -67,7 +64,6 @@ public class PublicTraceCacheService {
     this.publicVerificationResolver = publicVerificationResolver;
     this.farmMediaRepository = farmMediaRepository;
     this.traceEventRepository = traceEventRepository;
-    this.priceBreakdownRepository = priceBreakdownRepository;
     this.storageService = storageService;
     this.cacheManager = cacheManager;
   }
@@ -139,10 +135,14 @@ public class PublicTraceCacheService {
         BatchResponse.from(batch),
         FarmerResponse.from(farmer),
         FarmResponse.from(farm),
-        priceBreakdownRepository.findByBatchId(batch.getId()).map(PriceBreakdownResponse::from).orElse(null),
+        priceBreakdownFor(batch),
         publicVerification.verification(),
         publicVerification.evidence(),
         farmMedia);
+  }
+
+  private PriceBreakdownResponse priceBreakdownFor(Batch batch) {
+    return batch.hasDetailedPriceBreakdown() ? PriceBreakdownResponse.from(batch) : null;
   }
 
   @CacheEvict(value = "publicTraceStable", key = "#publicToken")

@@ -11,8 +11,7 @@ public record QrCodeResponse(
     String qrImageUrl,
     String qrType,
     Boolean isActive,
-    LocalDateTime generatedAt,
-    LocalDateTime expiresAt) {
+    LocalDateTime generatedAt) {
 
   public static QrCodeResponse from(QrCode qrCode) {
     return new QrCodeResponse(
@@ -22,15 +21,18 @@ public record QrCodeResponse(
         qrCode.getQrImageUrl(),
         qrCode.getQrType(),
         qrCode.getIsActive(),
-        qrCode.getGeneratedAt(),
-        qrCode.getExpiresAt());
+        qrCode.getGeneratedAt());
   }
 
   public static QrCodeResponse from(QrCode qrCode, StorageService storageService) {
     QrCodeResponse response = from(qrCode);
     return new QrCodeResponse(
-        response.id(), response.batchId(), response.publicToken(),
-        storageService.generatePresignedUrl(response.qrImageUrl()), response.qrType(),
-        response.isActive(), response.generatedAt(), response.expiresAt());
+        response.id(),
+        response.batchId(),
+        response.publicToken(),
+        storageService.generatePresignedUrl(response.qrImageUrl()),
+        response.qrType(),
+        response.isActive(),
+        response.generatedAt());
   }
 }

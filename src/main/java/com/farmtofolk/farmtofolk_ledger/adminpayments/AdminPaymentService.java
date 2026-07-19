@@ -3,16 +3,13 @@ package com.farmtofolk.farmtofolk_ledger.adminpayments;
 import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchResponse;
+import com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus;
 import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurement;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementRepository;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementResponse;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -32,17 +29,14 @@ import org.springframework.transaction.annotation.Transactional;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminPaymentService {
 
-  private final BatchProcurementRepository procurementRepository;
   private final BatchRepository batchRepository;
   private final FarmerRepository farmerRepository;
   private final FarmRepository farmRepository;
 
   public AdminPaymentService(
-      BatchProcurementRepository procurementRepository,
       BatchRepository batchRepository,
       FarmerRepository farmerRepository,
       FarmRepository farmRepository) {
-    this.procurementRepository = procurementRepository;
     this.batchRepository = batchRepository;
     this.farmerRepository = farmerRepository;
     this.farmRepository = farmRepository;
@@ -100,17 +94,6 @@ public class AdminPaymentService {
   }
 
   @Transactional
-  public BatchProcurementResponse updatePaymentStatus(
-      UUID procurementId, UpdatePaymentStatusRequest request) {
-    BatchProcurement procurement =
-        procurementRepository
-            .findById(procurementId)
-            .orElseThrow(() -> new ResourceNotFoundException("Procurement not found"));
-    procurement.setPaymentStatus(request.paymentStatus());
-    return BatchProcurementResponse.from(procurementRepository.save(procurement));
-  }
-
-  @Transactional
   public BatchResponse updateBatchPaymentStatus(UUID batchId, UpdatePaymentStatusRequest request) {
     Batch batch = batchRepository.findById(batchId)
         .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
@@ -155,7 +138,7 @@ public class AdminPaymentService {
               batch.getFarmerPricePerUnit(),
               batch.getTotalFarmerAmount(),
               batch.getPaymentStatus(),
-              "INR",
+              batch.getCurrency(),
               batch.getReceivedDate() == null ? null : batch.getReceivedDate().atStartOfDay()));
     }
     return payments.stream()

@@ -35,9 +35,6 @@ public class QrCode {
   @Column(name = "generated_at")
   private LocalDateTime generatedAt;
 
-  @Column(name = "expires_at")
-  private LocalDateTime expiresAt;
-
   public UUID getId() {
     return id;
   }
@@ -88,13 +85,5 @@ public class QrCode {
 
   public void setGeneratedAt(LocalDateTime generatedAt) {
     this.generatedAt = generatedAt;
-  }
-
-  public LocalDateTime getExpiresAt() {
-    return expiresAt;
-  }
-
-  public void setExpiresAt(LocalDateTime expiresAt) {
-    this.expiresAt = expiresAt;
   }
 }

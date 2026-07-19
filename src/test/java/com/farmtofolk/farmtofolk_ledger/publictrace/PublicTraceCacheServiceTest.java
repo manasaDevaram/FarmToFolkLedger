@@ -13,7 +13,6 @@ import com.farmtofolk.farmtofolk_ledger.media.FarmMedia;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCode;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
 import com.farmtofolk.farmtofolk_ledger.verification.VerificationEvidenceResponse;
 import java.time.LocalDate;
 import java.util.List;
@@ -40,8 +39,6 @@ class PublicTraceCacheServiceTest {
   @Mock private PublicVerificationResolver publicVerificationResolver;
 
   @Mock private FarmMediaRepository farmMediaRepository;
-
-  @Mock private PriceBreakdownRepository priceBreakdownRepository;
 
   @Mock private org.springframework.cache.CacheManager cacheManager;
 
@@ -116,7 +113,6 @@ class PublicTraceCacheServiceTest {
                 List.of(publicEvidence)));
     when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId))
         .thenReturn(List.of(publicMedia, privateMedia));
-    when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 
@@ -158,7 +154,6 @@ class PublicTraceCacheServiceTest {
     when(publicVerificationResolver.resolveForFarm(farmId))
         .thenReturn(PublicVerificationResolver.PublicVerificationSnapshot.empty());
     when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId)).thenReturn(List.of());
-    when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 
@@ -205,7 +200,6 @@ class PublicTraceCacheServiceTest {
                     null),
                 List.of()));
     when(farmMediaRepository.findByFarmIdOrderByCreatedAtAsc(farmId)).thenReturn(List.of());
-    when(priceBreakdownRepository.findByBatchId(batchId)).thenReturn(Optional.empty());
 
     CachedPublicTraceStableData stableData = publicTraceCacheService.getStableData(publicToken);
 

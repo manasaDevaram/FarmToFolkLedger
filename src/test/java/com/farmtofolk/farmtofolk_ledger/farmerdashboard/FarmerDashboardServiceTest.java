@@ -15,13 +15,7 @@ import com.farmtofolk.farmtofolk_ledger.farm.Farm;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.Farmer;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdownRepository;
-import com.farmtofolk.farmtofolk_ledger.pricing.PriceBreakdown;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurement;
-import com.farmtofolk.farmtofolk_ledger.procurement.BatchProcurementRepository;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransaction;
-import com.farmtofolk.farmtofolk_ledger.sales.BatchSaleTransactionRepository;
+import com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
 import java.math.BigDecimal;
 import java.util.List;
@@ -43,14 +37,11 @@ class FarmerDashboardServiceTest {
   @Mock FarmRepository farmRepository;
   @Mock BatchRepository batchRepository;
   @Mock TraceEventRepository traceEventRepository;
-  @Mock PriceBreakdownRepository priceBreakdownRepository;
-  @Mock BatchProcurementRepository procurementRepository;
-  @Mock BatchSaleTransactionRepository saleTransactionRepository;
   @Mock BatchUsageRepository batchUsageRepository;
   @Mock StorageService storageService;
 
   @Test
-  void batchSummaryAggregatesProcurementAndAllSaleTransactions() {
+  void batchSummaryAggregatesUsageSaleAmounts() {
     UUID farmerId = UUID.randomUUID();
     UUID farmId = UUID.randomUUID();
     UUID batchId = UUID.randomUUID();
@@ -160,25 +151,6 @@ class FarmerDashboardServiceTest {
         storageService);
   }
 
-  private BatchProcurement procurement(UUID batchId, String quantity, String price) {
-    BatchProcurement procurement = new BatchProcurement();
-    procurement.setBatchId(batchId);
-    procurement.setQuantityTaken(new BigDecimal(quantity));
-    procurement.setFarmerPricePerUnit(new BigDecimal(price));
-    procurement.setPaymentStatus(PaymentStatus.UNPAID);
-    procurement.calculateFarmerAmountPayable();
-    return procurement;
-  }
-
-  private BatchSaleTransaction sale(UUID batchId, String quantity, String price) {
-    BatchSaleTransaction sale = new BatchSaleTransaction();
-    sale.setBatchId(batchId);
-    sale.setQuantitySold(new BigDecimal(quantity));
-    sale.setSalePricePerUnit(new BigDecimal(price));
-    sale.calculateSaleAmount();
-    return sale;
-  }
-
   private BatchUsage usage(UUID batchId, String quantity, String price) {
     BatchUsage usage = new BatchUsage();
     usage.setBatchId(batchId);
@@ -186,12 +158,5 @@ class FarmerDashboardServiceTest {
     usage.setQuantity(new BigDecimal(quantity));
     usage.setPricePerUnit(new BigDecimal(price));
     return usage;
-  }
-
-  private PriceBreakdown price(UUID batchId, String consumerPrice) {
-    PriceBreakdown price = new PriceBreakdown();
-    price.setBatchId(batchId);
-    price.setConsumerPrice(new BigDecimal(consumerPrice));
-    return price;
   }
 }

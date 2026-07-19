@@ -69,7 +69,7 @@ class SecurityAccessTest {
   }
 
   @Test
-  void farmerCannotCreateProcurementOrSaleTransactions() throws Exception {
+  void farmerCannotCreateBatches() throws Exception {
     User farmer = new User();
     farmer.setName("Farmer");
     farmer.setPhone("9876543211");
@@ -78,23 +78,14 @@ class SecurityAccessTest {
     farmer.setActive(true);
     farmer = userRepository.save(farmer);
     String authorization = "Bearer " + jwtService.generateToken(farmer);
-    String batchId = "55e3153f-febb-4491-beb1-60a1d9ca0b1f";
 
     mockMvc
         .perform(
-            post("/api/batches/{batchId}/procurement", batchId)
+            post("/api/batches")
                 .header("Authorization", authorization)
                 .contentType("application/json")
                 .content(
-                    "{\"quantityTaken\":10,\"farmerPricePerUnit\":20,\"paymentStatus\":\"UNPAID\"}"))
-        .andExpect(status().isForbidden());
-
-    mockMvc
-        .perform(
-            post("/api/batches/{batchId}/sale-transactions", batchId)
-                .header("Authorization", authorization)
-                .contentType("application/json")
-                .content("{\"quantitySold\":1,\"salePricePerUnit\":30}"))
+                    "{\"farmId\":\"55e3153f-febb-4491-beb1-60a1d9ca0b1f\",\"farmerId\":\"55e3153f-febb-4491-beb1-60a1d9ca0b20\",\"cropName\":\"Tomato\",\"quantityReceived\":10,\"unit\":\"kg\",\"harvestDate\":\"2026-07-19\",\"receivedDate\":\"2026-07-19\",\"farmerPricePerUnit\":20,\"paymentStatus\":\"UNPAID\",\"status\":\"HARVESTED\"}"))
         .andExpect(status().isForbidden());
   }
 
@@ -142,16 +133,6 @@ class SecurityAccessTest {
             post("/api/batches/{batchId}/price-breakdown", batchId)
                 .header("Authorization", authorization))
         .andExpect(status().isBadRequest());
-    mockMvc
-        .perform(
-            post("/api/batches/{batchId}/procurement", batchId)
-                .header("Authorization", authorization))
-        .andExpect(status().isForbidden());
-    mockMvc
-        .perform(
-            post("/api/batches/{batchId}/sale-transactions", batchId)
-                .header("Authorization", authorization))
-        .andExpect(status().isForbidden());
   }
 
   @Test

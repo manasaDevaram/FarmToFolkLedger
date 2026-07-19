@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record CreateBatchRequest(

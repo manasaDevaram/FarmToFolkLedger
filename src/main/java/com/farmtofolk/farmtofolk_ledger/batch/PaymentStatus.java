@@ -1,4 +1,4 @@
-package com.farmtofolk.farmtofolk_ledger.procurement;
+package com.farmtofolk.farmtofolk_ledger.batch;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Locale;

@@ -1,6 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.farmerdashboard;
 
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
+import com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;

@@ -12,7 +12,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 
@@ -77,6 +76,18 @@ public class Batch {
   @Column(name = "operational_cost_per_unit", nullable = false, precision = 19, scale = 2)
   private BigDecimal operationalCostPerUnit;
 
+  @Column(name = "wastage_cost", nullable = false, precision = 19, scale = 2)
+  private BigDecimal wastageCost = BigDecimal.ZERO;
+
+  @Column(name = "packaging_cost", nullable = false, precision = 19, scale = 2)
+  private BigDecimal packagingCost = BigDecimal.ZERO;
+
+  @Column(nullable = false)
+  private String currency = "INR";
+
+  @Column(name = "price_unit")
+  private String priceUnit;
+
   private String status;
 
   @Column(name = "created_at")
@@ -104,6 +115,9 @@ public class Batch {
     quantityWasted = quantityWasted == null ? BigDecimal.ZERO : quantityWasted;
     quantityUsedInProduct = quantityUsedInProduct == null ? BigDecimal.ZERO : quantityUsedInProduct;
     quantityAvailable = quantityAvailable == null ? quantityReceived : quantityAvailable;
+    wastageCost = wastageCost == null ? BigDecimal.ZERO : wastageCost;
+    packagingCost = packagingCost == null ? BigDecimal.ZERO : packagingCost;
+    currency = currency == null || currency.isBlank() ? "INR" : currency;
     calculateTotalFarmerAmount();
   }
 
@@ -118,11 +132,30 @@ public class Batch {
     quantityWasted = BigDecimal.ZERO;
     quantityUsedInProduct = BigDecimal.ZERO;
     quantityAvailable = quantityReceived;
+    wastageCost = BigDecimal.ZERO;
+    packagingCost = BigDecimal.ZERO;
+    currency = "INR";
+    priceUnit = unit;
     calculateTotalFarmerAmount();
   }
 
+  public boolean hasDetailedPriceBreakdown() {
+    return zero(consumerPricePerUnit).signum() > 0
+        || zero(wastageCost).signum() > 0
+        || zero(packagingCost).signum() > 0
+        || zero(operationalCostPerUnit).signum() > 0;
+  }
+
   public BigDecimal getMargin() {
-    return consumerPricePerUnit.subtract(farmerPricePerUnit).subtract(operationalCostPerUnit);
+    return zero(consumerPricePerUnit)
+        .subtract(zero(farmerPricePerUnit))
+        .subtract(zero(wastageCost))
+        .subtract(zero(packagingCost))
+        .subtract(zero(operationalCostPerUnit));
+  }
+
+  private BigDecimal zero(BigDecimal value) {
+    return value == null ? BigDecimal.ZERO : value;
   }
 
   public UUID getId() {
@@ -177,14 +210,6 @@ public class Batch {
     this.quantityReceived = quantityReceived;
   }
 
-  /** @deprecated use quantityReceived. */
-  @Deprecated
-  public BigDecimal getQuantity() { return quantityReceived; }
-
-  /** @deprecated use quantityReceived. */
-  @Deprecated
-  public void setQuantity(BigDecimal quantity) { this.quantityReceived = quantity; }
-
   public BigDecimal getQuantitySold() { return quantitySold; }
   public void setQuantitySold(BigDecimal quantitySold) { this.quantitySold = quantitySold; }
   public BigDecimal getQuantityWasted() { return quantityWasted; }
@@ -221,6 +246,14 @@ public class Batch {
   public void setConsumerPricePerUnit(BigDecimal value) { this.consumerPricePerUnit = value; }
   public BigDecimal getOperationalCostPerUnit() { return operationalCostPerUnit; }
   public void setOperationalCostPerUnit(BigDecimal value) { this.operationalCostPerUnit = value; }
+  public BigDecimal getWastageCost() { return wastageCost; }
+  public void setWastageCost(BigDecimal wastageCost) { this.wastageCost = wastageCost; }
+  public BigDecimal getPackagingCost() { return packagingCost; }
+  public void setPackagingCost(BigDecimal packagingCost) { this.packagingCost = packagingCost; }
+  public String getCurrency() { return currency; }
+  public void setCurrency(String currency) { this.currency = currency; }
+  public String getPriceUnit() { return priceUnit; }
+  public void setPriceUnit(String priceUnit) { this.priceUnit = priceUnit; }
 
   public String getStatus() {
     return status;

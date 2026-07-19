@@ -1,7 +1,6 @@
 package com.farmtofolk.farmtofolk_ledger.verification;
 
 import com.farmtofolk.farmtofolk_ledger.auth.CurrentUserService;
-import com.farmtofolk.farmtofolk_ledger.blockchain.BlockchainProofService;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
@@ -39,7 +38,6 @@ public class VerificationEvidenceService {
   private final ThumbnailService thumbnailService;
   private final FileHashService fileHashService;
   private final CurrentUserService currentUserService;
-  private final BlockchainProofService blockchainProofService;
   private final TransactionTemplate transactionTemplate;
   private final DomainEventPublisher domainEventPublisher;
 
@@ -50,7 +48,6 @@ public class VerificationEvidenceService {
       ThumbnailService thumbnailService,
       FileHashService fileHashService,
       CurrentUserService currentUserService,
-      BlockchainProofService blockchainProofService,
       DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager) {
     this.verificationEvidenceRepository = verificationEvidenceRepository;
@@ -59,7 +56,6 @@ public class VerificationEvidenceService {
     this.thumbnailService = thumbnailService;
     this.fileHashService = fileHashService;
     this.currentUserService = currentUserService;
-    this.blockchainProofService = blockchainProofService;
     this.domainEventPublisher = domainEventPublisher;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.transactionTemplate.setPropagationBehavior(
@@ -116,7 +112,6 @@ public class VerificationEvidenceService {
                 evidence.setUploadedByUserId(uploadedByUserId);
 
                 VerificationEvidence saved = verificationEvidenceRepository.save(evidence);
-                blockchainProofService.createPendingEvidenceProof(saved.getId(), fileHash);
                 return VerificationEvidenceResponse.from(saved, storageService);
               });
     } catch (RuntimeException exception) {
@@ -124,7 +119,7 @@ public class VerificationEvidenceService {
       throw exception;
     }
 
-    // The evidence and pending proof have committed before consumers see the new cache value.
+    // The evidence has committed before consumers see the new cache value.
     if (isImage(storedFile.contentType())) {
       thumbnailService.createFromUpload(file, storedFile.objectKey());
       domainEventPublisher.publishAfterCommit(

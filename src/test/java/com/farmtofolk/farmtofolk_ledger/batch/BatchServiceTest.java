@@ -74,7 +74,7 @@ class BatchServiceTest {
             LocalDate.now(),
             LocalDate.now(),
             new BigDecimal("20"),
-            com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
+            com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus.UNPAID,
             "READY");
 
     assertThrows(BadRequestException.class, () -> batchService.createBatch(request));
@@ -105,7 +105,7 @@ class BatchServiceTest {
             LocalDate.now(),
             LocalDate.now(),
             new BigDecimal("20"),
-            com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
+            com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus.UNPAID,
             "READY");
 
     batchService.updateBatch(batchId, request);
@@ -140,7 +140,7 @@ class BatchServiceTest {
             LocalDate.now(),
             LocalDate.now(),
             new BigDecimal("20"),
-            com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus.UNPAID,
+            com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus.UNPAID,
             "READY");
 
     BatchResponse response = batchService.createBatch(request);

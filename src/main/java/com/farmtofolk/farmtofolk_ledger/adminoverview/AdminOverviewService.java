@@ -12,7 +12,7 @@ import com.farmtofolk.farmtofolk_ledger.farmer.FarmerRepository;
 import com.farmtofolk.farmtofolk_ledger.farmer.FarmerResponse;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaRepository;
 import com.farmtofolk.farmtofolk_ledger.media.FarmMediaResponse;
-import com.farmtofolk.farmtofolk_ledger.procurement.PaymentStatus;
+import com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeRepository;
 import com.farmtofolk.farmtofolk_ledger.qr.QrCodeResponse;
 import com.farmtofolk.farmtofolk_ledger.traceability.TraceEventRepository;
