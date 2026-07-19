@@ -40,6 +40,42 @@ class FarmerServiceTest {
   @Mock PasswordEncoder passwordEncoder;
 
   @Test
+  void createWithMediaRejectsDuplicateFarmerPhoneBeforeUpload() {
+    when(farmerRepository.existsByPhone("9876543210")).thenReturn(true);
+    FarmerService service =
+        new FarmerService(
+            farmerRepository,
+            storageService,
+            thumbnailService,
+            videoTranscodeService,
+            domainEventPublisher,
+            transactionManager,
+            userRepository,
+            passwordEncoder,
+            "ChangeMe@123");
+
+    assertThrows(
+        ConflictException.class,
+        () ->
+            service.createFarmerWithMedia(
+                new CreateFarmerRequest(
+                    "FTF-FR-2026-000001",
+                    "Ramesh",
+                    "9876543210",
+                    "Hullahalli",
+                    "Mysuru",
+                    "Karnataka",
+                    null,
+                    null,
+                    null,
+                    LocalDate.now()),
+                new org.springframework.mock.web.MockMultipartFile(
+                    "profilePhoto", "photo.jpg", "image/jpeg", "photo".getBytes()),
+                new org.springframework.mock.web.MockMultipartFile(
+                    "introVideo", "intro.mp4", "video/mp4", "video".getBytes())));
+  }
+
+  @Test
   void createRejectsDuplicateFarmerPhone() {
     when(farmerRepository.existsByPhone("9876543210")).thenReturn(true);
     FarmerService service =
