@@ -41,7 +41,6 @@ class AdminUserServiceTest {
   @Test
   void createsAdminAndFieldOfficerWithoutExposingPassword() {
     when(passwordEncoder.encode("temporary123")).thenReturn("encoded");
-    when(passwordEncoder.encode("ChangeMe@123")).thenReturn("default-encoded");
     when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
     for (UserRole role : List.of(UserRole.ADMIN, UserRole.FIELD_OFFICER)) {
@@ -60,8 +59,22 @@ class AdminUserServiceTest {
 
     ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
     verify(userRepository, org.mockito.Mockito.times(2)).save(captor.capture());
-    assertEquals("encoded", captor.getAllValues().getFirst().getPasswordHash());
-    assertEquals("default-encoded", captor.getAllValues().getLast().getPasswordHash());
+    assertEquals("encoded", captor.getAllValues().get(0).getPasswordHash());
+    assertEquals("encoded", captor.getAllValues().get(1).getPasswordHash());
+  }
+
+  @Test
+  void fieldOfficerFallsBackToDefaultPasswordWhenInitialPasswordMissing() {
+    when(passwordEncoder.encode("ChangeMe@123")).thenReturn("default-encoded");
+    when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.create(
+        new CreateInternalUserRequest(
+            "Officer", "officer@example.com", "9876543211", UserRole.FIELD_OFFICER, true, null));
+
+    ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+    verify(userRepository).save(captor.capture());
+    assertEquals("default-encoded", captor.getValue().getPasswordHash());
   }
 
   @Test

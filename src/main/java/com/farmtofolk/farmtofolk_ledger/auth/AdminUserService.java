@@ -165,10 +165,12 @@ public class AdminUserService {
   }
 
   private String initialPasswordFor(CreateInternalUserRequest request) {
-    if (request.role() != UserRole.ADMIN) return defaultUserPassword;
-    if (request.initialPassword() == null || request.initialPassword().isBlank()) {
+    if (request.initialPassword() != null && !request.initialPassword().isBlank()) {
+      return request.initialPassword();
+    }
+    if (request.role() == UserRole.ADMIN) {
       throw new BadRequestException("Initial password is required for ADMIN users");
     }
-    return request.initialPassword();
+    return defaultUserPassword;
   }
 }
