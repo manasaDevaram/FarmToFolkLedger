@@ -140,11 +140,13 @@ public class AdminOverviewService {
         return getPendingPaymentBatches(batchRepository.findAll()).stream().map(BatchResponse::from).toList();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'FIELD_OFFICER')")
     public List<FarmVerificationResponse> getPendingVerifications() {
         return farmVerificationRepository.findAll().stream().filter(this::isPendingVerification)
                 .map(FarmVerificationResponse::from).toList();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'FIELD_OFFICER')")
     public List<FarmVerificationResponse> getUpcomingVerifications() {
         return farmVerificationRepository.findAll().stream().filter(this::isUpcomingVerification)
                 .sorted(java.util.Comparator.comparing(FarmVerification::getNextVerificationDue))

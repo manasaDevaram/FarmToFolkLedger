@@ -126,6 +126,15 @@ class SecurityAccessTest {
         .andExpect(status().isForbidden());
     mockMvc
         .perform(
+            get("/api/admin/dashboard/pending-verifications").header("Authorization", authorization))
+        .andExpect(status().isOk());
+    mockMvc
+        .perform(
+            get("/api/admin/dashboard/upcoming-verifications")
+                .header("Authorization", authorization))
+        .andExpect(status().isOk());
+    mockMvc
+        .perform(
             post("/api/batches/{batchId}/qr-code", batchId).header("Authorization", authorization))
         .andExpect(status().isNotFound());
     mockMvc

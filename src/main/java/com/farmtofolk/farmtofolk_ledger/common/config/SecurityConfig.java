@@ -94,6 +94,11 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**")
                     .permitAll()
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        "/api/admin/dashboard/pending-verifications",
+                        "/api/admin/dashboard/upcoming-verifications")
+                    .hasAnyRole("ADMIN", "FIELD_OFFICER")
                     .requestMatchers("/api/admin/**")
                     .hasRole("ADMIN")
                     .requestMatchers(HttpMethod.PATCH, "/api/users/me/password")
