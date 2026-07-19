@@ -68,6 +68,13 @@ class S3StorageServiceTest {
   }
 
   @Test
+  void returnsNullPresignedUrlsForMissingObjectKey() {
+    assertEquals(null, service.generatePresignedUrl(null));
+    assertEquals(null, service.generateThumbnailPresignedUrl(null));
+    assertEquals(null, service.generateThumbnailPresignedUrl(""));
+  }
+
+  @Test
   void rejectsVideoLargerThanConfiguredLimit() {
     MultipartFile file = mock(MultipartFile.class);
     when(file.isEmpty()).thenReturn(false);

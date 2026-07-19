@@ -180,6 +180,9 @@ public class S3StorageService implements StorageService {
 
   @Override
   public String generateThumbnailPresignedUrl(String objectKey) {
+    if (objectKey == null || objectKey.isBlank()) {
+      return null;
+    }
     String thumbnailKey = ThumbnailKeys.forOriginal(extractObjectKey(objectKey));
     if (thumbnailKey == null || !objectExists(thumbnailKey)) {
       return null;
@@ -276,6 +279,9 @@ public class S3StorageService implements StorageService {
   }
 
   private String extractObjectKey(String storedValue) {
+    if (storedValue == null || storedValue.isBlank()) {
+      return null;
+    }
     if (!storedValue.startsWith("https://")) {
       return storedValue.replaceFirst("^/+", "");
     }
