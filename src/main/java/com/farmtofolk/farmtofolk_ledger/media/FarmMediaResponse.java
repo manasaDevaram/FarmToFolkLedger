@@ -9,6 +9,7 @@ public record FarmMediaResponse(
     UUID farmId,
     String mediaType,
     String mediaUrl,
+    String thumbnailUrl,
     String fileKey,
     String contentType,
     Long sizeBytes,
@@ -22,6 +23,7 @@ public record FarmMediaResponse(
         farmMedia.getFarmId(),
         farmMedia.getMediaType(),
         farmMedia.getMediaUrl(),
+        null,
         farmMedia.getFileKey(),
         farmMedia.getContentType(),
         farmMedia.getSizeBytes(),
@@ -31,17 +33,22 @@ public record FarmMediaResponse(
   }
 
   public static FarmMediaResponse from(FarmMedia farmMedia, StorageService storageService) {
-    FarmMediaResponse response = from(farmMedia);
-    String storedValue = farmMedia.getFileKey() != null ? farmMedia.getFileKey() : farmMedia.getMediaUrl();
-    return new FarmMediaResponse(
-        response.id(), response.farmId(), response.mediaType(),
-        storageService.generatePresignedUrl(storedValue), response.fileKey(), response.contentType(),
-        response.sizeBytes(), response.caption(), response.isPublic(), response.createdAt());
+    return from(farmMedia).withPresignedUrl(storageService);
   }
 
   public FarmMediaResponse withPresignedUrl(StorageService storageService) {
     String storedValue = fileKey != null ? fileKey : mediaUrl;
-    return new FarmMediaResponse(id, farmId, mediaType, storageService.generatePresignedUrl(storedValue),
-        fileKey, contentType, sizeBytes, caption, isPublic, createdAt);
+    return new FarmMediaResponse(
+        id,
+        farmId,
+        mediaType,
+        storageService.generatePresignedUrl(storedValue),
+        storageService.generateThumbnailPresignedUrl(storedValue),
+        fileKey,
+        contentType,
+        sizeBytes,
+        caption,
+        isPublic,
+        createdAt);
   }
 }

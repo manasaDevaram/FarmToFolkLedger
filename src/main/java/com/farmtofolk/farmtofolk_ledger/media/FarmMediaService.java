@@ -7,6 +7,8 @@ import com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.farm.FarmRepository;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.ThumbnailService;
+import com.farmtofolk.farmtofolk_ledger.storage.VideoTranscodeService;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +28,8 @@ public class FarmMediaService {
   private final FarmMediaRepository farmMediaRepository;
   private final FarmRepository farmRepository;
   private final StorageService storageService;
+  private final ThumbnailService thumbnailService;
+  private final VideoTranscodeService videoTranscodeService;
   private final TransactionTemplate transactionTemplate;
   private final DomainEventPublisher domainEventPublisher;
 
@@ -33,11 +37,15 @@ public class FarmMediaService {
       FarmMediaRepository farmMediaRepository,
       FarmRepository farmRepository,
       StorageService storageService,
+      ThumbnailService thumbnailService,
+      VideoTranscodeService videoTranscodeService,
       DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager) {
     this.farmMediaRepository = farmMediaRepository;
     this.farmRepository = farmRepository;
     this.storageService = storageService;
+    this.thumbnailService = thumbnailService;
+    this.videoTranscodeService = videoTranscodeService;
     this.domainEventPublisher = domainEventPublisher;
     this.transactionTemplate = new TransactionTemplate(transactionManager);
     this.transactionTemplate.setPropagationBehavior(
@@ -66,8 +74,7 @@ public class FarmMediaService {
     verifyFarmExists(farmId);
 
     // Store the file in S3 and keep only metadata in PostgreSQL.
-    StoredFileResponse storedFile =
-        storageService.upload(file, "farm-media/" + farmId, FARM_MEDIA_CONTENT_TYPES);
+    StoredFileResponse storedFile = storeUploadedMedia(file, farmId);
 
     FarmMediaResponse response;
     try {
@@ -92,11 +99,25 @@ public class FarmMediaService {
 
     // TransactionTemplate has committed before the public cache is invalidated.
     if (isImage(storedFile.contentType())) {
+      thumbnailService.createFromUpload(file, storedFile.objectKey());
       domainEventPublisher.publishAfterCommit(
           new ImageUploadedEvent("FARM_MEDIA", response.id(), storedFile.objectKey()));
     }
     publishFarmChanged(farmId);
     return response;
+  }
+
+  private StoredFileResponse storeUploadedMedia(MultipartFile file, UUID farmId) {
+    String contentType = file.getContentType();
+    if (contentType != null && contentType.startsWith("video/")) {
+      VideoTranscodeService.TranscodedVideo transcodedVideo = videoTranscodeService.transcodeForUpload(file);
+      return storageService.upload(
+          transcodedVideo.content(),
+          transcodedVideo.filename(),
+          transcodedVideo.contentType(),
+          "farm-media/" + farmId);
+    }
+    return storageService.upload(file, "farm-media/" + farmId, FARM_MEDIA_CONTENT_TYPES);
   }
 
   @Transactional(readOnly = true)

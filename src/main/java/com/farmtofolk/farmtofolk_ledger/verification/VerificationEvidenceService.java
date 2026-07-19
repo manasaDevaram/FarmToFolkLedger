@@ -9,6 +9,7 @@ import com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.storage.FileHashService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.ThumbnailService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -35,6 +36,7 @@ public class VerificationEvidenceService {
   private final VerificationEvidenceRepository verificationEvidenceRepository;
   private final FarmVerificationRepository farmVerificationRepository;
   private final StorageService storageService;
+  private final ThumbnailService thumbnailService;
   private final FileHashService fileHashService;
   private final CurrentUserService currentUserService;
   private final BlockchainProofService blockchainProofService;
@@ -45,6 +47,7 @@ public class VerificationEvidenceService {
       VerificationEvidenceRepository verificationEvidenceRepository,
       FarmVerificationRepository farmVerificationRepository,
       StorageService storageService,
+      ThumbnailService thumbnailService,
       FileHashService fileHashService,
       CurrentUserService currentUserService,
       BlockchainProofService blockchainProofService,
@@ -53,6 +56,7 @@ public class VerificationEvidenceService {
     this.verificationEvidenceRepository = verificationEvidenceRepository;
     this.farmVerificationRepository = farmVerificationRepository;
     this.storageService = storageService;
+    this.thumbnailService = thumbnailService;
     this.fileHashService = fileHashService;
     this.currentUserService = currentUserService;
     this.blockchainProofService = blockchainProofService;
@@ -122,6 +126,7 @@ public class VerificationEvidenceService {
 
     // The evidence and pending proof have committed before consumers see the new cache value.
     if (isImage(storedFile.contentType())) {
+      thumbnailService.createFromUpload(file, storedFile.objectKey());
       domainEventPublisher.publishAfterCommit(
           new ImageUploadedEvent(
               "VERIFICATION_EVIDENCE", response.id(), storedFile.objectKey()));

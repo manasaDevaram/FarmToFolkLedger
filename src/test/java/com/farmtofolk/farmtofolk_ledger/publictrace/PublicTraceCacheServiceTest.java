@@ -80,6 +80,7 @@ class PublicTraceCacheServiceTest {
             null,
             null,
             null,
+            null,
             "Public evidence",
             true,
             null,

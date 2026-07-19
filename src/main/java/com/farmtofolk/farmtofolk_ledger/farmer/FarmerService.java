@@ -10,6 +10,8 @@ import com.farmtofolk.farmtofolk_ledger.events.ImageUploadedEvent;
 import com.farmtofolk.farmtofolk_ledger.events.PublicTraceContentChangedEvent;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
 import com.farmtofolk.farmtofolk_ledger.storage.StoredFileResponse;
+import com.farmtofolk.farmtofolk_ledger.storage.ThumbnailService;
+import com.farmtofolk.farmtofolk_ledger.storage.VideoTranscodeService;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -33,6 +35,8 @@ public class FarmerService {
 
   private final FarmerRepository farmerRepository;
   private final StorageService storageService;
+  private final ThumbnailService thumbnailService;
+  private final VideoTranscodeService videoTranscodeService;
   private final DomainEventPublisher domainEventPublisher;
   private final TransactionTemplate transactionTemplate;
   private final UserRepository userRepository;
@@ -42,6 +46,8 @@ public class FarmerService {
   public FarmerService(
       FarmerRepository farmerRepository,
       StorageService storageService,
+      ThumbnailService thumbnailService,
+      VideoTranscodeService videoTranscodeService,
       DomainEventPublisher domainEventPublisher,
       PlatformTransactionManager transactionManager,
       UserRepository userRepository,
@@ -50,6 +56,8 @@ public class FarmerService {
           String defaultUserPassword) {
     this.farmerRepository = farmerRepository;
     this.storageService = storageService;
+    this.thumbnailService = thumbnailService;
+    this.videoTranscodeService = videoTranscodeService;
     this.domainEventPublisher = domainEventPublisher;
     this.userRepository = userRepository;
     this.passwordEncoder = passwordEncoder;
@@ -97,6 +105,7 @@ public class FarmerService {
               farmer.setProfilePhotoKey(storedFile.objectKey());
               farmer.setProfilePhotoUrl(null);
             });
+    thumbnailService.createFromUpload(file, storedFile.objectKey());
     domainEventPublisher.publishAfterCommit(
         new ImageUploadedEvent("FARMER_PROFILE", farmerId, storedFile.objectKey()));
     publishFarmerChanged(farmerId);
@@ -105,9 +114,13 @@ public class FarmerService {
 
   public FarmerResponse uploadIntroVideo(UUID farmerId, MultipartFile file) {
     findFarmer(farmerId);
+    VideoTranscodeService.TranscodedVideo transcodedVideo = videoTranscodeService.transcodeForUpload(file);
     StoredFileResponse storedFile =
         storageService.upload(
-            file, "farmers/" + farmerId + "/intro-video", INTRO_VIDEO_CONTENT_TYPES);
+            transcodedVideo.content(),
+            transcodedVideo.filename(),
+            transcodedVideo.contentType(),
+            "farmers/" + farmerId + "/intro-video");
     FarmerResponse response =
         saveUploadedFarmerFile(
             farmerId, storedFile, farmer -> {

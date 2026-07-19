@@ -17,9 +17,13 @@ import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
@@ -100,6 +104,87 @@ public class S3StorageService implements StorageService {
     }
     return new StoredFileResponse(
         fileKey, null, originalFilename, contentType, (long) content.length);
+  }
+
+  @Override
+  public void uploadAtKey(byte[] content, String objectKey, String contentType) {
+    if (content == null || content.length == 0) {
+      throw new BadRequestException("File must not be empty");
+    }
+    if (objectKey == null || objectKey.isBlank()) {
+      throw new BadRequestException("Object key is required");
+    }
+    if (storageProperties.getBucket() == null || storageProperties.getBucket().isBlank()) {
+      throw new StorageException("S3 bucket is not configured");
+    }
+    String normalizedKey = objectKey.replaceFirst("^/+", "");
+    PutObjectRequest request =
+        PutObjectRequest.builder()
+            .bucket(storageProperties.getBucket())
+            .key(normalizedKey)
+            .contentType(contentType)
+            .contentLength((long) content.length)
+            .build();
+    try {
+      s3Client.putObject(request, RequestBody.fromBytes(content));
+    } catch (SdkException exception) {
+      throw new StorageException("S3 upload failed");
+    }
+  }
+
+  @Override
+  public boolean objectExists(String objectKey) {
+    String normalizedKey = extractObjectKey(objectKey);
+    if (normalizedKey == null || normalizedKey.isBlank()) {
+      return false;
+    }
+    try {
+      s3Client.headObject(
+          HeadObjectRequest.builder()
+              .bucket(storageProperties.getBucket())
+              .key(normalizedKey)
+              .build());
+      return true;
+    } catch (NoSuchKeyException exception) {
+      return false;
+    } catch (S3Exception exception) {
+      if (exception.statusCode() == 404) {
+        return false;
+      }
+      throw new StorageException("S3 object lookup failed");
+    } catch (SdkException exception) {
+      throw new StorageException("S3 object lookup failed");
+    }
+  }
+
+  @Override
+  public byte[] readObjectBytes(String objectKey) {
+    String normalizedKey = extractObjectKey(objectKey);
+    if (normalizedKey == null || normalizedKey.isBlank()) {
+      return new byte[0];
+    }
+    try {
+      ResponseBytes<?> objectBytes =
+          s3Client.getObjectAsBytes(
+              GetObjectRequest.builder()
+                  .bucket(storageProperties.getBucket())
+                  .key(normalizedKey)
+                  .build());
+      return objectBytes.asByteArray();
+    } catch (NoSuchKeyException exception) {
+      return new byte[0];
+    } catch (SdkException exception) {
+      throw new StorageException("S3 read failed");
+    }
+  }
+
+  @Override
+  public String generateThumbnailPresignedUrl(String objectKey) {
+    String thumbnailKey = ThumbnailKeys.forOriginal(extractObjectKey(objectKey));
+    if (thumbnailKey == null || !objectExists(thumbnailKey)) {
+      return null;
+    }
+    return generatePresignedUrl(thumbnailKey);
   }
 
   @Override

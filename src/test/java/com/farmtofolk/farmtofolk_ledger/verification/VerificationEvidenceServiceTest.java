@@ -30,6 +30,7 @@ class VerificationEvidenceServiceTest {
   @Mock FarmVerificationRepository verificationRepository;
   @Mock PublicTraceCacheService cacheService;
   @Mock StorageService storageService;
+  @Mock ThumbnailService thumbnailService;
   @Mock FileHashService fileHashService;
   @Mock CurrentUserService currentUserService;
   @Mock BlockchainProofService blockchainProofService;
@@ -65,6 +66,7 @@ class VerificationEvidenceServiceTest {
             evidenceRepository,
             verificationRepository,
             storageService,
+            thumbnailService,
             fileHashService,
             currentUserService,
             blockchainProofService,
@@ -96,6 +98,7 @@ class VerificationEvidenceServiceTest {
             evidenceRepository,
             verificationRepository,
             storageService,
+            thumbnailService,
             fileHashService,
             currentUserService,
             blockchainProofService,
@@ -137,6 +140,7 @@ class VerificationEvidenceServiceTest {
             evidenceRepository,
             verificationRepository,
             storageService,
+            thumbnailService,
             fileHashService,
             currentUserService,
             blockchainProofService,

@@ -9,6 +9,7 @@ public record VerificationEvidenceResponse(
     UUID verificationId,
     String fileType,
     String fileUrl,
+    String thumbnailUrl,
     String fileKey,
     String fileHash,
     String contentType,
@@ -25,6 +26,7 @@ public record VerificationEvidenceResponse(
         verificationEvidence.getVerificationId(),
         verificationEvidence.getFileType(),
         verificationEvidence.getFileUrl(),
+        null,
         verificationEvidence.getFileKey(),
         verificationEvidence.getFileHash(),
         verificationEvidence.getContentType(),
@@ -44,7 +46,19 @@ public record VerificationEvidenceResponse(
   public VerificationEvidenceResponse withPresignedUrl(StorageService storageService) {
     String storedValue = fileKey != null ? fileKey : fileUrl;
     return new VerificationEvidenceResponse(
-        id, verificationId, fileType, storageService.generatePresignedUrl(storedValue), fileKey,
-        fileHash, contentType, sizeBytes, caption, isPublic, capturedAt, uploadedByUserId, createdAt);
+        id,
+        verificationId,
+        fileType,
+        storageService.generatePresignedUrl(storedValue),
+        storageService.generateThumbnailPresignedUrl(storedValue),
+        fileKey,
+        fileHash,
+        contentType,
+        sizeBytes,
+        caption,
+        isPublic,
+        capturedAt,
+        uploadedByUserId,
+        createdAt);
   }
 }

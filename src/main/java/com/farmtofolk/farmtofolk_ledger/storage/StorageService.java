@@ -12,7 +12,15 @@ public interface StorageService {
   StoredFileResponse upload(
       byte[] content, String originalFilename, String contentType, String folderPath);
 
+  void uploadAtKey(byte[] content, String objectKey, String contentType);
+
+  boolean objectExists(String objectKey);
+
+  byte[] readObjectBytes(String objectKey);
+
   String generatePresignedUrl(String objectKey);
+
+  String generateThumbnailPresignedUrl(String objectKey);
 
   void delete(String objectKey);
 }

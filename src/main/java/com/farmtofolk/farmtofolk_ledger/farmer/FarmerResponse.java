@@ -15,6 +15,7 @@ public record FarmerResponse(
     String state,
     String bio,
     String profilePhotoUrl,
+    String profilePhotoThumbnailUrl,
     String introVideoUrl,
     LocalDate joinedDate,
     Boolean active,
@@ -32,6 +33,7 @@ public record FarmerResponse(
         farmer.getState(),
         farmer.getBio(),
         farmer.getProfilePhotoKey() != null ? farmer.getProfilePhotoKey() : farmer.getProfilePhotoUrl(),
+        null,
         farmer.getIntroVideoKey() != null ? farmer.getIntroVideoKey() : farmer.getIntroVideoUrl(),
         farmer.getJoinedDate(),
         farmer.getActive(),
@@ -44,9 +46,22 @@ public record FarmerResponse(
   }
 
   public FarmerResponse withPresignedUrls(StorageService storageService) {
+    String photoKey = profilePhotoUrl;
     return new FarmerResponse(
-        id, farmerCode, name, phone, village, district, state, bio,
-        storageService.generatePresignedUrl(profilePhotoUrl),
-        storageService.generatePresignedUrl(introVideoUrl), joinedDate, active, createdAt, updatedAt);
+        id,
+        farmerCode,
+        name,
+        phone,
+        village,
+        district,
+        state,
+        bio,
+        storageService.generatePresignedUrl(photoKey),
+        storageService.generateThumbnailPresignedUrl(photoKey),
+        storageService.generatePresignedUrl(introVideoUrl),
+        joinedDate,
+        active,
+        createdAt,
+        updatedAt);
   }
 }

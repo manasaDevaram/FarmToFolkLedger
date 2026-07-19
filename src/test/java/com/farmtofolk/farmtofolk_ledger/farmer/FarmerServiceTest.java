@@ -13,6 +13,8 @@ import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.auth.UserRepository;
 import com.farmtofolk.farmtofolk_ledger.publictrace.PublicTraceCacheService;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
+import com.farmtofolk.farmtofolk_ledger.storage.ThumbnailService;
+import com.farmtofolk.farmtofolk_ledger.storage.VideoTranscodeService;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,6 +31,8 @@ class FarmerServiceTest {
   @Mock FarmerRepository farmerRepository;
   @Mock PublicTraceCacheService cacheService;
   @Mock StorageService storageService;
+  @Mock ThumbnailService thumbnailService;
+  @Mock VideoTranscodeService videoTranscodeService;
   @Mock AfterCommitExecutor afterCommitExecutor;
   @Mock DomainEventPublisher domainEventPublisher;
   @Mock PlatformTransactionManager transactionManager;
@@ -42,6 +46,8 @@ class FarmerServiceTest {
         new FarmerService(
             farmerRepository,
             storageService,
+            thumbnailService,
+            videoTranscodeService,
             domainEventPublisher,
             transactionManager,
             userRepository,
@@ -78,6 +84,8 @@ class FarmerServiceTest {
         new FarmerService(
             farmerRepository,
             storageService,
+            thumbnailService,
+            videoTranscodeService,
             domainEventPublisher,
             transactionManager,
             userRepository,
@@ -118,6 +126,8 @@ class FarmerServiceTest {
         new FarmerService(
             farmerRepository,
             storageService,
+            thumbnailService,
+            videoTranscodeService,
             domainEventPublisher,
             transactionManager,
             userRepository,
