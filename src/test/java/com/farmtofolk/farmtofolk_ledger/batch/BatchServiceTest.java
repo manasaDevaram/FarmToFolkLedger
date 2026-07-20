@@ -53,20 +53,23 @@ class BatchServiceTest {
   }
 
   @Test
-  void createBatchRejectsFarmOwnedByDifferentFarmer() {
+  void createProcuredBatchRejectsFarmOwnedByDifferentFarmer() {
     UUID requestFarmerId = UUID.randomUUID();
     UUID actualFarmOwnerId = UUID.randomUUID();
     UUID farmId = UUID.randomUUID();
+    UUID parentBatchId = UUID.randomUUID();
     Farm farm = new Farm();
     farm.setFarmerId(actualFarmOwnerId);
+    farm.setActive(true);
 
     when(farmerRepository.existsById(requestFarmerId)).thenReturn(true);
     when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
 
-    CreateBatchRequest request =
-        new CreateBatchRequest(
+    CreateProcuredBatchRequest request =
+        new CreateProcuredBatchRequest(
             farmId,
             requestFarmerId,
+            parentBatchId,
             "Tomato",
             "Local",
             BigDecimal.TEN,
@@ -74,10 +77,9 @@ class BatchServiceTest {
             LocalDate.now(),
             LocalDate.now(),
             new BigDecimal("20"),
-            com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus.UNPAID,
-            "READY");
+            PaymentStatus.UNPAID);
 
-    assertThrows(BadRequestException.class, () -> batchService.createBatch(request));
+    assertThrows(BadRequestException.class, () -> batchService.createProcuredBatch(request));
   }
 
   @Test
@@ -87,7 +89,9 @@ class BatchServiceTest {
     UUID batchId = UUID.randomUUID();
     Farm farm = new Farm();
     farm.setFarmerId(farmerId);
+    farm.setActive(true);
     Batch batch = new Batch();
+    batch.setBatchType(BatchType.PROCURED);
 
     when(farmerRepository.existsById(farmerId)).thenReturn(true);
     when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
@@ -105,8 +109,8 @@ class BatchServiceTest {
             LocalDate.now(),
             LocalDate.now(),
             new BigDecimal("20"),
-            com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus.UNPAID,
-            "READY");
+            PaymentStatus.UNPAID,
+            "RECEIVED");
 
     batchService.updateBatch(batchId, request);
 
@@ -114,13 +118,16 @@ class BatchServiceTest {
   }
 
   @Test
-  void createBatchGeneratesUniqueBatchCode() {
+  void createSowingBatchGeneratesUniqueBatchCode() {
     UUID farmerId = UUID.randomUUID();
     UUID farmId = UUID.randomUUID();
     Farm farm = new Farm();
     farm.setFarmerId(farmerId);
+    farm.setActive(true);
     Batch savedBatch = new Batch();
     savedBatch.setBatchCode("FTF-BATCH-2026-000001");
+    savedBatch.setBatchType(BatchType.SOWING);
+    savedBatch.setStatus("SOWN");
 
     when(farmerRepository.existsById(farmerId)).thenReturn(true);
     when(farmRepository.findById(farmId)).thenReturn(Optional.of(farm));
@@ -129,22 +136,19 @@ class BatchServiceTest {
     when(batchRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(Batch.class)))
         .thenReturn(savedBatch);
 
-    CreateBatchRequest request =
-        new CreateBatchRequest(
+    CreateSowingBatchRequest request =
+        new CreateSowingBatchRequest(
             farmId,
             farmerId,
             "Tomato",
             null,
-            BigDecimal.TEN,
-            "kg",
-            LocalDate.now(),
-            LocalDate.now(),
-            new BigDecimal("20"),
-            com.farmtofolk.farmtofolk_ledger.batch.PaymentStatus.UNPAID,
-            "READY");
+            new BigDecimal("2.5"),
+            LocalDate.now());
 
-    BatchResponse response = batchService.createBatch(request);
+    BatchResponse response = batchService.createSowingBatch(request);
 
     assertEquals("FTF-BATCH-2026-000001", response.batchCode());
+    assertEquals(BatchType.SOWING, response.batchType());
+    assertEquals("SOWN", response.status());
   }
 }

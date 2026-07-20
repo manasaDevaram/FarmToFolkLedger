@@ -4,13 +4,18 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+
 public record BatchResponse(
     UUID id,
     String batchCode,
+    BatchType batchType,
+    UUID parentBatchId,
     UUID farmId,
     UUID farmerId,
     String cropName,
     String variety,
+    BigDecimal acresSown,
+    LocalDate sowingDate,
     BigDecimal quantityReceived,
     BigDecimal quantitySold,
     BigDecimal quantityWasted,
@@ -32,10 +37,14 @@ public record BatchResponse(
     return new BatchResponse(
         batch.getId(),
         batch.getBatchCode(),
+        batch.getBatchType(),
+        batch.getParentBatchId(),
         batch.getFarmId(),
         batch.getFarmerId(),
         batch.getCropName(),
         batch.getVariety(),
+        batch.getAcresSown(),
+        batch.getSowingDate(),
         batch.getQuantityReceived(),
         batch.getQuantitySold(),
         batch.getQuantityWasted(),

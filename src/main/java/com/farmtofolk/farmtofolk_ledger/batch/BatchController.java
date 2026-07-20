@@ -22,6 +22,18 @@ public class BatchController {
     this.batchService = batchService;
   }
 
+  @PostMapping("/api/batches/sowing")
+  @ResponseStatus(HttpStatus.CREATED)
+  public BatchResponse createSowingBatch(@Valid @RequestBody CreateSowingBatchRequest request) {
+    return batchService.createSowingBatch(request);
+  }
+
+  @PostMapping("/api/batches/procured")
+  @ResponseStatus(HttpStatus.CREATED)
+  public BatchResponse createProcuredBatch(@Valid @RequestBody CreateProcuredBatchRequest request) {
+    return batchService.createProcuredBatch(request);
+  }
+
   @PostMapping("/api/batches")
   @ResponseStatus(HttpStatus.CREATED)
   public BatchResponse createBatch(@Valid @RequestBody CreateBatchRequest request) {
@@ -38,8 +50,19 @@ public class BatchController {
       @RequestParam(required = false) UUID farmerId,
       @RequestParam(required = false) UUID farmId,
       @RequestParam(required = false) String cropName,
-      @RequestParam(required = false) String status) {
-    return batchService.getAllBatches(farmerId, farmId, cropName, status);
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) BatchType batchType) {
+    return batchService.getAllBatches(farmerId, farmId, cropName, status, batchType);
+  }
+
+  @GetMapping("/api/farms/{farmId}/sowing-batches")
+  public List<BatchResponse> getSowingBatchesByFarm(@PathVariable UUID farmId) {
+    return batchService.getSowingBatchesByFarm(farmId);
+  }
+
+  @GetMapping("/api/batches/{batchId}/procured-batches")
+  public List<BatchResponse> getProcuredBatchesForSowing(@PathVariable UUID batchId) {
+    return batchService.getProcuredBatchesForSowing(batchId);
   }
 
   @GetMapping("/api/farmers/{farmerId}/batches")

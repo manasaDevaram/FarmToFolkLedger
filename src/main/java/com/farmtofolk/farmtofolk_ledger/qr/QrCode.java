@@ -20,6 +20,9 @@ public class QrCode {
   @Column(name = "batch_id", nullable = false)
   private UUID batchId;
 
+  @Column(name = "sowing_batch_id")
+  private UUID sowingBatchId;
+
   @Column(name = "public_token", unique = true, nullable = false)
   private String publicToken;
 
@@ -45,6 +48,14 @@ public class QrCode {
 
   public void setBatchId(UUID batchId) {
     this.batchId = batchId;
+  }
+
+  public UUID getSowingBatchId() {
+    return sowingBatchId;
+  }
+
+  public void setSowingBatchId(UUID sowingBatchId) {
+    this.sowingBatchId = sowingBatchId;
   }
 
   public String getPublicToken() {

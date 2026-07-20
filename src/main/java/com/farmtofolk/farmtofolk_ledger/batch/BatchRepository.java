@@ -13,6 +13,10 @@ public interface BatchRepository extends JpaRepository<Batch, UUID> {
 
   List<Batch> findByFarmId(UUID farmId);
 
+  List<Batch> findByFarmIdAndBatchType(UUID farmId, BatchType batchType);
+
+  List<Batch> findByParentBatchIdOrderByReceivedDateDesc(UUID parentBatchId);
+
   Optional<Batch> findByBatchCode(String batchCode);
 
   boolean existsByBatchCode(String batchCode);

@@ -19,13 +19,18 @@ public class TraceEventService {
 
   private static final List<String> DEFAULT_EVENT_TYPES =
       List.of(
+          "SOWN",
+          "GROWING",
+          "READY_FOR_HARVEST",
           "HARVESTED",
+          "RECEIVED",
           "CLEANED",
           "GRADED",
           "PACKED",
           "VERIFIED",
           "SHIPPED",
           "RECEIVED_AT_MARKET",
+          "READY_FOR_SALE",
           "SOLD");
 
   private final TraceEventRepository traceEventRepository;

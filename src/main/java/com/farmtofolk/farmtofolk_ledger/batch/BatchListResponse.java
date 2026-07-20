@@ -4,15 +4,20 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+
 public record BatchListResponse(
     UUID id,
     String batchCode,
+    BatchType batchType,
+    UUID parentBatchId,
     UUID farmerId,
     String farmerName,
     UUID farmId,
     String farmName,
     String cropName,
     String variety,
+    BigDecimal acresSown,
+    LocalDate sowingDate,
     BigDecimal quantityReceived,
     BigDecimal quantitySold,
     BigDecimal quantityWasted,
@@ -34,12 +39,16 @@ public record BatchListResponse(
     return new BatchListResponse(
         batch.getId(),
         batch.getBatchCode(),
+        batch.getBatchType(),
+        batch.getParentBatchId(),
         batch.getFarmerId(),
         farmerName,
         batch.getFarmId(),
         farmName,
         batch.getCropName(),
         batch.getVariety(),
+        batch.getAcresSown(),
+        batch.getSowingDate(),
         batch.getQuantityReceived(),
         batch.getQuantitySold(),
         batch.getQuantityWasted(),

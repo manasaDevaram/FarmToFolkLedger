@@ -38,7 +38,8 @@ class QrCodeServiceTest {
         UUID batchId = UUID.randomUUID();
         UUID qrCodeId = UUID.randomUUID();
         when(batchRepository.existsById(batchId)).thenReturn(true);
-        when(qrCodeRepository.findFirstByBatchIdAndIsActiveTrue(batchId)).thenReturn(Optional.empty());
+        when(qrCodeRepository.findFirstBySowingBatchIdAndIsActiveTrue(batchId))
+            .thenReturn(Optional.empty());
         when(qrCodeRepository.save(any(QrCode.class))).thenAnswer(invocation -> {
             QrCode qrCode = invocation.getArgument(0);
             ReflectionTestUtils.setField(qrCode, "id", qrCodeId);

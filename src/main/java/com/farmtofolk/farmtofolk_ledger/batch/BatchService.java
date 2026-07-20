@@ -42,41 +42,91 @@ public class BatchService {
     this.qrCodeService = qrCodeService;
   }
 
-  public BatchResponse createBatch(CreateBatchRequest request) {
-    // Make sure the batch points to a real farmer.
+  public BatchResponse createSowingBatch(CreateSowingBatchRequest request) {
     verifyFarmerExists(request.farmerId());
-    // Make sure the farm belongs to that farmer.
     verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
-    String batchCode = generateBatchCode();
 
-    // Copy request data into a new Batch entity.
     Batch batch = new Batch();
-    applyRequest(batch, request);
-    batch.setBatchCode(batchCode);
+    batch.setBatchCode(generateBatchCode());
+    batch.setBatchType(BatchType.SOWING);
+    batch.setFarmId(request.farmId());
+    batch.setFarmerId(request.farmerId());
+    batch.setCropName(request.cropName());
+    batch.setVariety(request.variety());
+    batch.setAcresSown(request.acresSown());
+    batch.setSowingDate(request.sowingDate());
+    batch.setUnit("acres");
+    batch.setQuantityReceived(BigDecimal.ZERO);
+    batch.setHarvestDate(null);
+    batch.setReceivedDate(null);
+    batch.setFarmerPricePerUnit(BigDecimal.ZERO);
+    batch.setPaymentStatus(PaymentStatus.UNPAID);
+    batch.setStatus("SOWN");
     batch.setConsumerPricePerUnit(BigDecimal.ZERO);
     batch.setOperationalCostPerUnit(BigDecimal.ZERO);
     batch.initializeInventory();
 
-    // Save the batch and return API-friendly response data.
     Batch savedBatch = batchRepository.saveAndFlush(batch);
-    // Every batch is traceable immediately. The QR image itself is generated asynchronously.
-    qrCodeService.createQrCode(savedBatch.getId());
+    qrCodeService.createQrCodeForSowing(savedBatch.getId());
     return BatchResponse.from(savedBatch);
   }
 
+  public BatchResponse createProcuredBatch(CreateProcuredBatchRequest request) {
+    verifyFarmerExists(request.farmerId());
+    verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
+
+    Batch sowingBatch = findBatch(request.parentBatchId());
+    if (sowingBatch.getBatchType() != BatchType.SOWING) {
+      throw new BadRequestException("Parent batch must be a sowing batch");
+    }
+    if (!sowingBatch.getFarmId().equals(request.farmId())) {
+      throw new BadRequestException("Procured batch farm must match sowing batch farm");
+    }
+    if (!sowingBatch.getFarmerId().equals(request.farmerId())) {
+      throw new BadRequestException("Procured batch farmer must match sowing batch farmer");
+    }
+
+    Batch batch = new Batch();
+    batch.setBatchCode(generateBatchCode());
+    batch.setBatchType(BatchType.PROCURED);
+    batch.setParentBatchId(request.parentBatchId());
+    batch.setFarmId(request.farmId());
+    batch.setFarmerId(request.farmerId());
+    batch.setCropName(request.cropName());
+    batch.setVariety(request.variety());
+    batch.setQuantityReceived(request.quantityReceived());
+    batch.setUnit(request.unit());
+    batch.setHarvestDate(request.harvestDate());
+    batch.setReceivedDate(request.receivedDate());
+    batch.setFarmerPricePerUnit(request.farmerPricePerUnit());
+    batch.setPaymentStatus(request.paymentStatus());
+    batch.setStatus("RECEIVED");
+    batch.setConsumerPricePerUnit(BigDecimal.ZERO);
+    batch.setOperationalCostPerUnit(BigDecimal.ZERO);
+    batch.initializeInventory();
+
+    Batch savedBatch = batchRepository.saveAndFlush(batch);
+    qrCodeService.pointQrToProcuredBatch(request.parentBatchId(), savedBatch.getId());
+    return BatchResponse.from(savedBatch);
+  }
+
+  public BatchResponse createBatch(CreateBatchRequest request) {
+    throw new BadRequestException(
+        "Use POST /api/batches/sowing or POST /api/batches/procured instead");
+  }
+
   public BatchResponse getBatch(UUID batchId) {
-    // Load one batch by ID and convert it to a response.
     Batch batch = findBatch(batchId);
     return BatchResponse.from(batch);
   }
 
   public List<BatchListResponse> getAllBatches(
-      UUID farmerId, UUID farmId, String cropName, String status) {
-    // Fetch batches for admin lists and apply simple optional filters.
+      UUID farmerId, UUID farmId, String cropName, String status, BatchType batchType) {
     List<Batch> batches =
         batchRepository.findAll().stream()
             .filter(batch -> farmerId == null || farmerId.equals(batch.getFarmerId()))
             .filter(batch -> farmId == null || farmId.equals(batch.getFarmId()))
+            .filter(batch -> batchType == null || batchType.equals(batch.getBatchType()))
             .filter(batch -> matches(batch.getCropName(), cropName))
             .filter(batch -> matches(batch.getStatus(), status))
             .toList();
@@ -110,39 +160,54 @@ public class BatchService {
         .toList();
   }
 
-  public List<BatchResponse> getBatchesByFarmer(UUID farmerId) {
-    // Make sure the farmer exists before listing their batches.
-    verifyFarmerExists(farmerId);
+  public List<BatchResponse> getSowingBatchesByFarm(UUID farmId) {
+    verifyFarmExists(farmId);
+    return batchRepository.findByFarmIdAndBatchType(farmId, BatchType.SOWING).stream()
+        .filter(batch -> !"CLOSED".equalsIgnoreCase(batch.getStatus()))
+        .map(BatchResponse::from)
+        .toList();
+  }
 
-    // Fetch all batches for this farmer and convert each one to a response.
+  public List<BatchResponse> getBatchesByFarmer(UUID farmerId) {
+    verifyFarmerExists(farmerId);
     return batchRepository.findByFarmerId(farmerId).stream().map(BatchResponse::from).toList();
   }
 
   public List<BatchResponse> getBatchesByFarm(UUID farmId) {
-    // Make sure the farm exists before listing its batches.
     verifyFarmExists(farmId);
-
-    // Fetch all batches for this farm and convert each one to a response.
     return batchRepository.findByFarmId(farmId).stream().map(BatchResponse::from).toList();
   }
 
+  public List<BatchResponse> getProcuredBatchesForSowing(UUID sowingBatchId) {
+    Batch sowingBatch = findBatch(sowingBatchId);
+    if (sowingBatch.getBatchType() != BatchType.SOWING) {
+      throw new BadRequestException("Batch is not a sowing batch");
+    }
+    return batchRepository.findByParentBatchIdOrderByReceivedDateDesc(sowingBatchId).stream()
+        .map(BatchResponse::from)
+        .toList();
+  }
+
   public BatchResponse updateBatch(UUID batchId, CreateBatchRequest request) {
-    // Make sure the updated batch still points to a real farmer.
-    verifyFarmerExists(request.farmerId());
-    // Make sure the updated farm belongs to that farmer.
-    verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
-    // Load the existing batch, update its fields, then save it.
     Batch batch = findBatch(batchId);
+    if (batch.getBatchType() != BatchType.PROCURED) {
+      throw new BadRequestException("Only procured batches can be updated with this endpoint");
+    }
+
+    verifyFarmerExists(request.farmerId());
+    verifyFarmBelongsToFarmer(request.farmId(), request.farmerId());
+
     String existingBatchCode = batch.getBatchCode();
     BigDecimal existingConsumerPrice = batch.getConsumerPricePerUnit();
     BigDecimal existingOperationalCost = batch.getOperationalCostPerUnit();
-    applyRequest(batch, request);
+    applyProcuredRequest(batch, request);
     batch.setBatchCode(existingBatchCode);
     batch.setConsumerPricePerUnit(existingConsumerPrice);
     batch.setOperationalCostPerUnit(existingOperationalCost);
-    BigDecimal committedQuantity = zero(batch.getQuantitySold())
-        .add(zero(batch.getQuantityWasted()))
-        .add(zero(batch.getQuantityUsedInProduct()));
+    BigDecimal committedQuantity =
+        zero(batch.getQuantitySold())
+            .add(zero(batch.getQuantityWasted()))
+            .add(zero(batch.getQuantityUsedInProduct()));
     if (request.quantityReceived().compareTo(committedQuantity) < 0) {
       throw new BadRequestException("quantityReceived cannot be less than already used quantity");
     }
@@ -150,40 +215,34 @@ public class BatchService {
     batch.calculateTotalFarmerAmount();
 
     Batch savedBatch = batchRepository.save(batch);
-    // Clear QR page stable data because batch details changed.
     domainEventPublisher.publishAfterCommit(new BatchUpdatedEvent(batchId));
     return BatchResponse.from(savedBatch);
   }
 
   private Batch findBatch(UUID batchId) {
-    // Reuse one not-found lookup rule for all batch reads and updates.
     return batchRepository
         .findById(batchId)
         .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
   }
 
   private void verifyFarmerExists(UUID farmerId) {
-    // Prevent creating or listing batches for farmers that do not exist.
     if (!farmerRepository.existsById(farmerId)) {
       throw new ResourceNotFoundException("Farmer not found");
     }
   }
 
   private void verifyFarmExists(UUID farmId) {
-    // Prevent listing batches for farms that do not exist.
     if (!farmRepository.existsById(farmId)) {
       throw new ResourceNotFoundException("Farm not found");
     }
   }
 
   private void verifyFarmBelongsToFarmer(UUID farmId, UUID farmerId) {
-    // Load the farm so we can validate ownership against the farmer ID.
     Farm farm =
         farmRepository
             .findById(farmId)
             .orElseThrow(() -> new ResourceNotFoundException("Farm not found"));
 
-    // Prevent batches from linking one farmer to another farmer's farm.
     if (!farm.getFarmerId().equals(farmerId)) {
       throw new BadRequestException("Farm does not belong to farmer");
     }
@@ -193,8 +252,7 @@ public class BatchService {
     }
   }
 
-  private void applyRequest(Batch batch, CreateBatchRequest request) {
-    // Keep request-to-entity field mapping in one place.
+  private void applyProcuredRequest(Batch batch, CreateBatchRequest request) {
     batch.setFarmId(request.farmId());
     batch.setFarmerId(request.farmerId());
     batch.setCropName(request.cropName());
@@ -205,7 +263,9 @@ public class BatchService {
     batch.setReceivedDate(request.receivedDate());
     batch.setFarmerPricePerUnit(request.farmerPricePerUnit());
     batch.setPaymentStatus(request.paymentStatus());
-    batch.setStatus(request.status());
+    if (request.status() != null && !request.status().isBlank()) {
+      batch.setStatus(request.status());
+    }
   }
 
   private boolean matches(String actual, String expected) {

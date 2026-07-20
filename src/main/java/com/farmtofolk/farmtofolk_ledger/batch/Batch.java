@@ -37,7 +37,20 @@ public class Batch {
 
   private String variety;
 
-  @Column(name = "quantity_received", nullable = false, precision = 19, scale = 3)
+  @Enumerated(EnumType.STRING)
+  @Column(name = "batch_type", nullable = false)
+  private BatchType batchType = BatchType.PROCURED;
+
+  @Column(name = "parent_batch_id")
+  private UUID parentBatchId;
+
+  @Column(name = "sowing_date")
+  private LocalDate sowingDate;
+
+  @Column(name = "acres_sown", precision = 19, scale = 3)
+  private BigDecimal acresSown;
+
+  @Column(name = "quantity_received", precision = 19, scale = 3)
   private BigDecimal quantityReceived;
 
   @Column(name = "quantity_sold", nullable = false, precision = 19, scale = 3)
@@ -57,10 +70,10 @@ public class Batch {
   @Column(name = "harvest_date")
   private LocalDate harvestDate;
 
-  @Column(name = "received_date", nullable = false)
+  @Column(name = "received_date")
   private LocalDate receivedDate;
 
-  @Column(name = "farmer_price_per_unit", nullable = false, precision = 19, scale = 2)
+  @Column(name = "farmer_price_per_unit", precision = 19, scale = 2)
   private BigDecimal farmerPricePerUnit;
 
   @Column(name = "total_farmer_amount", nullable = false, precision = 19, scale = 2)
@@ -98,6 +111,9 @@ public class Batch {
 
   @PrePersist
   void prePersist() {
+    if (batchType == null) {
+      batchType = BatchType.PROCURED;
+    }
     LocalDateTime now = LocalDateTime.now();
     createdAt = now;
     updatedAt = now;
@@ -114,10 +130,15 @@ public class Batch {
     quantitySold = quantitySold == null ? BigDecimal.ZERO : quantitySold;
     quantityWasted = quantityWasted == null ? BigDecimal.ZERO : quantityWasted;
     quantityUsedInProduct = quantityUsedInProduct == null ? BigDecimal.ZERO : quantityUsedInProduct;
-    quantityAvailable = quantityAvailable == null ? quantityReceived : quantityAvailable;
+    if (quantityAvailable == null) {
+      quantityAvailable = quantityReceived == null ? BigDecimal.ZERO : quantityReceived;
+    }
     wastageCost = wastageCost == null ? BigDecimal.ZERO : wastageCost;
     packagingCost = packagingCost == null ? BigDecimal.ZERO : packagingCost;
     currency = currency == null || currency.isBlank() ? "INR" : currency;
+    if (farmerPricePerUnit == null) {
+      farmerPricePerUnit = BigDecimal.ZERO;
+    }
     calculateTotalFarmerAmount();
   }
 
@@ -200,6 +221,38 @@ public class Batch {
 
   public void setVariety(String variety) {
     this.variety = variety;
+  }
+
+  public BatchType getBatchType() {
+    return batchType;
+  }
+
+  public void setBatchType(BatchType batchType) {
+    this.batchType = batchType;
+  }
+
+  public UUID getParentBatchId() {
+    return parentBatchId;
+  }
+
+  public void setParentBatchId(UUID parentBatchId) {
+    this.parentBatchId = parentBatchId;
+  }
+
+  public LocalDate getSowingDate() {
+    return sowingDate;
+  }
+
+  public void setSowingDate(LocalDate sowingDate) {
+    this.sowingDate = sowingDate;
+  }
+
+  public BigDecimal getAcresSown() {
+    return acresSown;
+  }
+
+  public void setAcresSown(BigDecimal acresSown) {
+    this.acresSown = acresSown;
   }
 
   public BigDecimal getQuantityReceived() {

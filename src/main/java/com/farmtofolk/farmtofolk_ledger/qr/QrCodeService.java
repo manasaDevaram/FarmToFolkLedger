@@ -1,7 +1,9 @@
 package com.farmtofolk.farmtofolk_ledger.qr;
 
+import com.farmtofolk.farmtofolk_ledger.batch.Batch;
 import com.farmtofolk.farmtofolk_ledger.batch.BatchRepository;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
+import com.farmtofolk.farmtofolk_ledger.events.BatchUpdatedEvent;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
 import com.farmtofolk.farmtofolk_ledger.events.QrCodeCreatedEvent;
 import com.farmtofolk.farmtofolk_ledger.storage.StorageService;
@@ -32,41 +34,61 @@ public class QrCodeService {
     this.storageService = storageService;
   }
 
-  public QrCodeResponse createQrCode(UUID batchId) {
-    // Make sure the QR code is linked to a real batch.
-    verifyBatchExists(batchId);
+  public QrCodeResponse createQrCodeForSowing(UUID sowingBatchId) {
+    verifyBatchExists(sowingBatchId);
 
-    // Return the existing active QR code if this batch already has one.
     return qrCodeRepository
-        .findFirstByBatchIdAndIsActiveTrue(batchId)
-        .map(
-            qrCode -> {
-              // POST is idempotent, but also acts as a retry while image generation is pending.
-              if (qrCode.getQrImageUrl() == null || qrCode.getQrImageUrl().isBlank()) {
-                publishGeneration(qrCode);
-              }
-              return QrCodeResponse.from(qrCode, storageService);
-            })
-        .orElseGet(() -> createNewQrCode(batchId));
+        .findFirstBySowingBatchIdAndIsActiveTrue(sowingBatchId)
+        .map(this::ensureGenerated)
+        .orElseGet(() -> createNewQrCode(sowingBatchId, sowingBatchId));
+  }
+
+  public QrCodeResponse createQrCode(UUID batchId) {
+    return createQrCodeForSowing(batchId);
+  }
+
+  public void pointQrToProcuredBatch(UUID sowingBatchId, UUID procuredBatchId) {
+    verifyBatchExists(procuredBatchId);
+    QrCode qrCode =
+        qrCodeRepository
+            .findFirstBySowingBatchIdAndIsActiveTrue(sowingBatchId)
+            .orElseThrow(
+                () ->
+                    new ResourceNotFoundException(
+                        "No active QR code found for sowing batch " + sowingBatchId));
+    qrCode.setBatchId(procuredBatchId);
+    qrCodeRepository.save(qrCode);
+    domainEventPublisher.publishAfterCommit(new BatchUpdatedEvent(procuredBatchId));
   }
 
   public QrCodeResponse getQrCode(UUID batchId) {
-    // Make sure the batch exists before reading its active QR code.
     verifyBatchExists(batchId);
+    Batch batch =
+        batchRepository
+            .findById(batchId)
+            .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
+    UUID sowingBatchId = resolveSowingBatchId(batch);
 
-    // Return the active QR code for this batch.
     QrCode qrCode =
         qrCodeRepository
-            .findFirstByBatchIdAndIsActiveTrue(batchId)
+            .findFirstBySowingBatchIdAndIsActiveTrue(sowingBatchId)
+            .or(() -> qrCodeRepository.findFirstByBatchIdAndIsActiveTrue(batchId))
             .orElseThrow(
                 () -> new ResourceNotFoundException("No active QR code found for this batch"));
     return QrCodeResponse.from(qrCode, storageService);
   }
 
-  private QrCodeResponse createNewQrCode(UUID batchId) {
-    // Build a new consumer QR code with a random public token.
+  private QrCodeResponse ensureGenerated(QrCode qrCode) {
+    if (qrCode.getQrImageUrl() == null || qrCode.getQrImageUrl().isBlank()) {
+      publishGeneration(qrCode);
+    }
+    return QrCodeResponse.from(qrCode, storageService);
+  }
+
+  private QrCodeResponse createNewQrCode(UUID sowingBatchId, UUID activeBatchId) {
     QrCode qrCode = new QrCode();
-    qrCode.setBatchId(batchId);
+    qrCode.setBatchId(activeBatchId);
+    qrCode.setSowingBatchId(sowingBatchId);
     qrCode.setPublicToken(UUID.randomUUID().toString());
     qrCode.setQrType(CONSUMER_QR_TYPE);
     qrCode.setIsActive(true);
@@ -77,13 +99,19 @@ public class QrCodeService {
     return QrCodeResponse.from(savedQrCode, storageService);
   }
 
+  private UUID resolveSowingBatchId(Batch batch) {
+    if (batch.getParentBatchId() != null) {
+      return batch.getParentBatchId();
+    }
+    return batch.getId();
+  }
+
   private void publishGeneration(QrCode qrCode) {
     domainEventPublisher.publishAfterCommit(
         new QrCodeCreatedEvent(qrCode.getId(), qrCode.getBatchId(), qrCode.getPublicToken()));
   }
 
   private void verifyBatchExists(UUID batchId) {
-    // Prevent creating or reading QR codes for batches that do not exist.
     if (!batchRepository.existsById(batchId)) {
       throw new ResourceNotFoundException("Batch not found");
     }

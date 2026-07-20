@@ -10,5 +10,7 @@ public interface QrCodeRepository extends JpaRepository<QrCode, UUID> {
 
   Optional<QrCode> findFirstByBatchIdAndIsActiveTrue(UUID batchId);
 
+  Optional<QrCode> findFirstBySowingBatchIdAndIsActiveTrue(UUID sowingBatchId);
+
   Optional<QrCode> findByPublicTokenAndIsActiveTrue(String publicToken);
 }
