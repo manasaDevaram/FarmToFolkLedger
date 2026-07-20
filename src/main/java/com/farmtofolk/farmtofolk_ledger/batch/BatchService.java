@@ -187,6 +187,10 @@ public class BatchService {
     if (!farm.getFarmerId().equals(farmerId)) {
       throw new BadRequestException("Farm does not belong to farmer");
     }
+
+    if (!Boolean.TRUE.equals(farm.getActive())) {
+      throw new BadRequestException("Farm is inactive");
+    }
   }
 
   private void applyRequest(Batch batch, CreateBatchRequest request) {

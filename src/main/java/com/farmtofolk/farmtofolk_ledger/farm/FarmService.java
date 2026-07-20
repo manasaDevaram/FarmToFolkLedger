@@ -100,6 +100,16 @@ public class FarmService {
     return FarmResponse.from(savedFarm);
   }
 
+  public FarmResponse updateFarmStatus(UUID farmId, UpdateFarmStatusRequest request) {
+    Farm farm = findFarm(farmId);
+    farm.setActive(request.active());
+
+    Farm savedFarm = farmRepository.save(farm);
+    domainEventPublisher.publishAfterCommit(
+        new PublicTraceContentChangedEvent(PublicTraceContentChangedEvent.Scope.FARM, farmId));
+    return FarmResponse.from(savedFarm);
+  }
+
   private Farm findFarm(UUID farmId) {
     // Reuse one not-found lookup rule for all farm reads and updates.
     return farmRepository

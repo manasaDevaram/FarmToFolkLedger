@@ -1,0 +1,6 @@
+ALTER TABLE farms
+    ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;
+
+UPDATE farms
+SET active = TRUE
+WHERE active IS NULL;

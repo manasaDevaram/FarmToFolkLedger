@@ -45,6 +45,8 @@ public class Farm {
   @Column(name = "farming_type")
   private String farmingType;
 
+  private Boolean active = true;
+
   @Column(name = "created_at")
   private LocalDateTime createdAt;
 
@@ -53,6 +55,9 @@ public class Farm {
 
   @PrePersist
   void prePersist() {
+    if (active == null) {
+      active = true;
+    }
     LocalDateTime now = LocalDateTime.now();
     createdAt = now;
     updatedAt = now;
@@ -141,6 +146,14 @@ public class Farm {
 
   public void setFarmingType(String farmingType) {
     this.farmingType = farmingType;
+  }
+
+  public Boolean getActive() {
+    return active;
+  }
+
+  public void setActive(Boolean active) {
+    this.active = active;
   }
 
   public LocalDateTime getCreatedAt() {

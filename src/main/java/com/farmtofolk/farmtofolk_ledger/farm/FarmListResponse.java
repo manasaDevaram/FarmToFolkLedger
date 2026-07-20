@@ -16,6 +16,7 @@ public record FarmListResponse(
     BigDecimal longitude,
     BigDecimal sizeAcres,
     String farmingType,
+    Boolean active,
     LocalDateTime createdAt,
     LocalDateTime updatedAt) {
 
@@ -32,6 +33,7 @@ public record FarmListResponse(
         farm.getLongitude(),
         farm.getSizeAcres(),
         farm.getFarmingType(),
+        farm.getActive(),
         farm.getCreatedAt(),
         farm.getUpdatedAt());
   }
