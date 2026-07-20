@@ -3,7 +3,6 @@ package com.farmtofolk.farmtofolk_ledger.farmer;
 import com.farmtofolk.farmtofolk_ledger.auth.User;
 import com.farmtofolk.farmtofolk_ledger.auth.UserRepository;
 import com.farmtofolk.farmtofolk_ledger.auth.UserRole;
-import com.farmtofolk.farmtofolk_ledger.common.error.BadRequestException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ResourceNotFoundException;
 import com.farmtofolk.farmtofolk_ledger.common.error.ConflictException;
 import com.farmtofolk.farmtofolk_ledger.events.DomainEventPublisher;
@@ -97,11 +96,10 @@ public class FarmerService {
 
   public FarmerResponse createFarmerWithMedia(
       CreateFarmerRequest request, MultipartFile profilePhoto, MultipartFile introVideo) {
-    if (profilePhoto == null || profilePhoto.isEmpty()) {
-      throw new BadRequestException("Profile photo is required");
-    }
-    if (introVideo == null || introVideo.isEmpty()) {
-      throw new BadRequestException("Intro video is required");
+    boolean hasPhoto = profilePhoto != null && !profilePhoto.isEmpty();
+    boolean hasVideo = introVideo != null && !introVideo.isEmpty();
+    if (!hasPhoto && !hasVideo) {
+      return createFarmer(request);
     }
 
     Farmer farmer = new Farmer();
@@ -115,33 +113,37 @@ public class FarmerService {
     }
 
     UUID farmerId = UUID.randomUUID();
-    StoredFileResponse photoFile =
-        storageService.upload(
-            profilePhoto,
-            "farmers/" + farmerId + "/profile-photo",
-            PROFILE_PHOTO_CONTENT_TYPES);
-
-    StoredFileResponse videoFile;
-    try {
-      VideoTranscodeService.TranscodedVideo transcodedVideo =
-          videoTranscodeService.transcodeForUpload(introVideo);
-      videoFile =
-          storageService.upload(
-              transcodedVideo.content(),
-              transcodedVideo.filename(),
-              transcodedVideo.contentType(),
-              "farmers/" + farmerId + "/intro-video");
-    } catch (RuntimeException exception) {
-      deleteUploadedFileSafely(photoFile.fileKey());
-      throw exception;
-    }
+    StoredFileResponse photoFile = null;
+    StoredFileResponse videoFile = null;
 
     try {
+      if (hasPhoto) {
+        photoFile =
+            storageService.upload(
+                profilePhoto,
+                "farmers/" + farmerId + "/profile-photo",
+                PROFILE_PHOTO_CONTENT_TYPES);
+      }
+      if (hasVideo) {
+        VideoTranscodeService.TranscodedVideo transcodedVideo =
+            videoTranscodeService.transcodeForUpload(introVideo);
+        videoFile =
+            storageService.upload(
+                transcodedVideo.content(),
+                transcodedVideo.filename(),
+                transcodedVideo.contentType(),
+                "farmers/" + farmerId + "/intro-video");
+      }
+
       farmer.setId(farmerId);
-      farmer.setProfilePhotoKey(photoFile.objectKey());
-      farmer.setProfilePhotoUrl(null);
-      farmer.setIntroVideoKey(videoFile.objectKey());
-      farmer.setIntroVideoUrl(null);
+      if (photoFile != null) {
+        farmer.setProfilePhotoKey(photoFile.objectKey());
+        farmer.setProfilePhotoUrl(null);
+      }
+      if (videoFile != null) {
+        farmer.setIntroVideoKey(videoFile.objectKey());
+        farmer.setIntroVideoUrl(null);
+      }
 
       User user = new User();
       user.setName(farmer.getName());
@@ -153,14 +155,20 @@ public class FarmerService {
       farmer.setUserId(savedUser.getId());
 
       Farmer savedFarmer = farmerRepository.save(farmer);
-      thumbnailService.createFromUpload(profilePhoto, photoFile.objectKey());
-      domainEventPublisher.publishAfterCommit(
-          new ImageUploadedEvent("FARMER_PROFILE", farmerId, photoFile.objectKey()));
+      if (photoFile != null) {
+        thumbnailService.createFromUpload(profilePhoto, photoFile.objectKey());
+        domainEventPublisher.publishAfterCommit(
+            new ImageUploadedEvent("FARMER_PROFILE", farmerId, photoFile.objectKey()));
+      }
       publishFarmerChanged(farmerId);
       return FarmerResponse.from(savedFarmer, storageService);
     } catch (RuntimeException exception) {
-      deleteUploadedFileSafely(photoFile.fileKey());
-      deleteUploadedFileSafely(videoFile.fileKey());
+      if (photoFile != null) {
+        deleteUploadedFileSafely(photoFile.fileKey());
+      }
+      if (videoFile != null) {
+        deleteUploadedFileSafely(videoFile.fileKey());
+      }
       throw exception;
     }
   }

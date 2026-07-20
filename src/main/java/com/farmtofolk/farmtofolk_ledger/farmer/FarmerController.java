@@ -38,8 +38,8 @@ public class FarmerController {
   @ResponseStatus(HttpStatus.CREATED)
   public FarmerResponse createFarmerWithMedia(
       @Valid @RequestPart("farmer") CreateFarmerRequest request,
-      @RequestPart("profilePhoto") MultipartFile profilePhoto,
-      @RequestPart("introVideo") MultipartFile introVideo) {
+      @RequestPart(value = "profilePhoto", required = false) MultipartFile profilePhoto,
+      @RequestPart(value = "introVideo", required = false) MultipartFile introVideo) {
     return farmerService.createFarmerWithMedia(request, profilePhoto, introVideo);
   }
 
